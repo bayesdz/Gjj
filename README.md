@@ -6,6 +6,7 @@ Dark fantasy dungeon RPG от первого лица для **Dungeon GameJam S
 
 - Сюжет: [`docs/STORY.md`](docs/STORY.md)
 - План подготовки и джема: [`docs/PLAN.md`](docs/PLAN.md)
+- Задачи по людям: [`docs/TASKS.md`](docs/TASKS.md)
 - Внешние ассеты и лицензии: [`docs/ASSETS.md`](docs/ASSETS.md)
 
 ## Технологии
