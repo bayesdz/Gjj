@@ -112,7 +112,7 @@ def floor_at(ray, x, y, hint):
 
 
 # ---------------------------------------------------------------- level dressing
-def wall_scatter(ray, node, count, models, seed, z_up=0.4, inset=0.45, scale=(0.6, 1.2)):
+def wall_scatter(ray, node, count, models, seed, z_up=0.4, inset=0.35, scale=(0.22, 0.42)):
     """Rocks at the foot of a chamber's walls (hides the floor/wall seam, like real caves)."""
     rr = random.Random(seed)
     x, y, fz, w, h = cave.NODES[node]
@@ -127,13 +127,28 @@ def wall_scatter(ray, node, count, models, seed, z_up=0.4, inset=0.45, scale=(0.
         place(rr.choice(models), "both", p.x, p.y, fz, scale=rr.uniform(*scale), ray=ray, z_off=-0.12)
 
 
+def floor_clutter(ray, node, count, seed, radius, keep_clear=1.2):
+    """Pebbles and twigs on the floor so it never looks swept (keeps the centre walkable)."""
+    rr = random.Random(seed)
+    x, y, fz, w, h = cave.NODES[node]
+    for i in range(count):
+        a = rr.uniform(0, 2 * math.pi)
+        r = rr.uniform(keep_clear, radius)
+        px, py = x + math.cos(a) * r, y + math.sin(a) * r
+        m = rr.choice(["namaqualand_boulder_05", "namaqualand_boulder_05", "dry_branches_medium_01"])
+        s = rr.uniform(0.08, 0.2) if "boulder" in m else rr.uniform(0.4, 0.7)
+        o = place(m, "both", px, py, fz, scale=s, ray=ray, z_off=-0.02)
+        if o and "branches" in m:
+            o.rotation_euler = (math.pi / 2, 0, rr.uniform(0, 2 * math.pi))  # lying on the ground
+
+
 def ceiling_roots(ray, node, count, seed, spread):
     rr = random.Random(seed)
     x, y, fz, w, h = cave.NODES[node]
     for i in range(count):
         place(rr.choice(["root_cluster_01", "root_cluster_02"]), "both",
               x + rr.uniform(-spread, spread), y + rr.uniform(-spread, spread), fz + 1.5,
-              mode="ceiling", ray=ray, scale=rr.uniform(0.8, 1.4))
+              mode="ceiling", ray=ray, scale=rr.uniform(0.3, 0.5))
 
 
 def tunnel_supports(ray, mats):
@@ -184,7 +199,7 @@ def build_level(ray, mats):
     x, y, fz, _, _ = N["A0"]
     for i, (dx, dy, s) in enumerate([(-0.8, -1.3, 1.3), (0.7, -1.6, 1.5), (0.0, -2.2, 1.8), (1.2, -0.6, 0.8)]):
         place(RNG.choice(["boulder_01", "namaqualand_boulder_02", "namaqualand_boulder_05"]), "both",
-              x + dx, y + dy, fz, scale=s, ray=ray, z_off=-0.2)
+              x + dx, y + dy, fz, scale=s * 0.7, ray=ray, z_off=-0.2)
     empty("Spawn_Player", (x, y + 1.2, floor_at(ray, x, y + 1.2, fz) + 1.0))
     empty("Look_Player", (N["A1"][0], N["A1"][1], N["A1"][2] + 1.6))
     place("dry_branches_medium_01", "both", x - 0.6, y + 3.5, fz, ray=ray)
@@ -207,7 +222,7 @@ def build_level(ray, mats):
     place("wooden_bowl_02", "truth", x - 2.0, y - 1.6, fz, ray=ray)
     place("hatchet", "illusion", x - 0.8, y + 1.9, fz, ray=ray, z_off=0.45)
     empty("Goblin_01", (x + 0.5, y + 1.0, floor_at(ray, x + 0.5, y + 1.0, fz)))
-    wall_scatter(ray, "B", 14, ["rock_moss_set_01", "rock_moss_set_02", "boulder_01"], 2, scale=(0.5, 1.0))
+    wall_scatter(ray, "B", 16, ["rock_moss_set_01", "rock_moss_set_02", "boulder_01"], 2)
     ceiling_roots(ray, "B", 4, 3, 3.5)
     for ang in (100, 280):
         t = wall_torch(ray, "B", ang)
@@ -219,7 +234,7 @@ def build_level(ray, mats):
     fire = place("stone_fire_pit", "both", x, y, fz, yaw=0.0, ray=ray)
     empty("Light_Fire_00", fire.location + Vector((0, 0, 0.45)))
     place("dry_branches_medium_01", "both", x + 1.4, y - 2.4, fz, ray=ray)
-    place("tree_stump_01", "both", x + 1.9, y + 1.3, fz, ray=ray, scale=0.8)
+    place("tree_stump_01", "both", x + 1.9, y + 1.3, fz, ray=ray, scale=0.4)
     place("wooden_stool_02", "both", x - 1.8, y + 1.4, fz, ray=ray)
     place("wooden_stool_02", "both", x + 1.4, y - 1.9, fz, ray=ray)
     # sleeping place (west)
@@ -275,6 +290,10 @@ def build_level(ray, mats):
     empty("Light_Lantern_01", lan.location + Vector((0, 0, 0.25)))
     empty("Goblin_02", (x + 2.2, y - 2.2, floor_at(ray, x + 2.2, y - 2.2, fz)))
     empty("Goblin_03", (x + 5.0, y + 1.0, floor_at(ray, x + 5.0, y + 1.0, fz)))
+    floor_clutter(ray, "D", 40, 21, 9.0, keep_clear=2.5)
+    floor_clutter(ray, "B", 18, 22, 5.0)
+    for n in ("A1", "A2", "C1", "C2", "F1", "F2"):
+        floor_clutter(ray, n, 6, hash(n) % 100, 1.4, keep_clear=0.8)
     wall_scatter(ray, "D", 26, ["rock_moss_set_01", "rock_moss_set_02", "boulder_01", "namaqualand_boulder_02"], 5)
     ceiling_roots(ray, "D", 8, 6, 7.0)
     for ang in (20, 150, 200, 330):
@@ -291,7 +310,7 @@ def build_level(ray, mats):
     sh = props.shining_one("Shining_One", (cx, cy, cz), -math.pi / 2)
     empty("Light_Shining_00", (cx, cy, cz + 1.0))
     empty("Item_Cage", (cx - 1.1, cy, cz + 1.0))
-    wall_scatter(ray, "E", 8, ["rock_moss_set_02"], 7, scale=(0.4, 0.7))
+    wall_scatter(ray, "E", 8, ["rock_moss_set_02"], 7, scale=(0.15, 0.25))
     t = wall_torch(ray, "E", 80)
     if t:
         torches.append(t)
@@ -299,7 +318,7 @@ def build_level(ray, mats):
     # --- F: exit, deeper down
     x, y, fz, w, h = N["F3"]
     empty("Exit", (x, y, floor_at(ray, x, y, fz) + 1.0))
-    place("boulder_01", "both", x + 1.2, y + 1.0, fz, ray=ray, scale=1.2)
+    place("boulder_01", "both", x + 1.2, y + 1.0, fz, ray=ray, scale=0.6)
 
     # --- torches
     for i, p in enumerate(torches):
@@ -434,9 +453,10 @@ def previews(out, look, samples):
         return Vector((x + dx, y + dy, fz + up))
     shots = [("entrance", eye("A0", 0, 1.5), eye("A1", 0, 0, 1.4)),
              ("guard", eye("B", -1.0, -5.5), eye("B", 1.0, 1.5, 0.9)),
-             ("hall", eye("D", 4.5, -8.0, 1.8), eye("D", -3.5, 2.0, 0.6)),
-             ("beds", eye("D", -1.0, -2.0, 1.7), eye("D", -5.5, 2.5, 0.4)),
-             ("cage", eye("E", -4.0, -1.0), eye("E", 1.0, 0.4, 1.0))]
+             ("hall", eye("D", 4.0, -7.0, 2.2), eye("D", -2.5, 2.0, 0.3)),
+             ("beds", eye("D", -1.5, -1.0, 1.9), eye("D", -5.8, 2.0, 0.2)),
+             ("kitchen", eye("D", 3.0, 3.5, 1.8), eye("D", 0.0, 7.8, 0.5)),
+             ("cage", eye("E", -3.2, -0.6, 1.7), eye("E", 0.8, 0.3, 0.9))]
     for name, e, t in shots:
         scene.shoot(cam, os.path.join(out, f"{look}_{name}.png"), e, t)
     log(look, "previews rendered")
