@@ -120,7 +120,8 @@ def wall_scatter(ray, node, count, models, seed, z_up=0.4, inset=0.45, scale=(0.
         a = 2 * math.pi * (i + rr.uniform(-0.3, 0.3)) / count
         d = Vector((math.cos(a), math.sin(a), 0))
         hit = ray.cast((x, y, fz + z_up), d, 30)[0]
-        if hit is None:
+        # skip openings: a ray that runs far away went down a tunnel
+        if hit is None or (hit.xy - Vector((x, y))).length > w * 1.35:
             continue
         p = hit - d * inset
         place(rr.choice(models), "both", p.x, p.y, fz, scale=rr.uniform(*scale), ray=ray, z_off=-0.12)
@@ -176,7 +177,7 @@ def build_level(ray, mats):
     N = cave.NODES
     bone_mat = bpy.data.materials.get("Lair_Bone") or bpy.data.materials.new("Lair_Bone")
     bone_mat.use_nodes = True
-    bone_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.55, 0.50, 0.40, 1)
+    bone_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.30, 0.26, 0.19, 1)
     bone_mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.7
 
     # --- A: entrance tunnel. Collapsed rock behind the player.
@@ -290,7 +291,7 @@ def build_level(ray, mats):
     sh = props.shining_one("Shining_One", (cx, cy, cz), -math.pi / 2)
     empty("Light_Shining_00", (cx, cy, cz + 1.0))
     empty("Item_Cage", (cx - 1.1, cy, cz + 1.0))
-    wall_scatter(ray, "E", 8, ["rock_moss_set_02", "boulder_01"], 7, scale=(0.4, 0.8))
+    wall_scatter(ray, "E", 8, ["rock_moss_set_02"], 7, scale=(0.4, 0.7))
     t = wall_torch(ray, "E", 80)
     if t:
         torches.append(t)

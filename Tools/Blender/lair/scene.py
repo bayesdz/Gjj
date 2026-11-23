@@ -150,6 +150,7 @@ def setup_render(samples=64, res=(1280, 720)):
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.view_settings.view_transform = "AgX"
     sc.view_settings.look = "AgX - Punchy"
+    sc.view_settings.exposure = 1.3
     w = bpy.data.worlds.get("W") or bpy.data.worlds.new("W")
     w.use_nodes = True
     w.node_tree.nodes["Background"].inputs["Color"].default_value = (0.0, 0.0, 0.0, 1)

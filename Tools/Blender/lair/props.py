@@ -173,11 +173,11 @@ def bone_pile(name, center, ray, count, mat, spread=0.6, seed=0):
         p = c + Vector((rr.uniform(-spread, spread), rr.uniform(-spread, spread), 0))
         hit = ray.floor(p.x, p.y, c.z)[0]
         z = (hit.z if hit else c.z) + 0.03 + rr.uniform(0, 0.08) * (i / count)
-        L = rr.uniform(0.25, 0.45)
+        L = rr.uniform(0.18, 0.38)
         ang = rr.uniform(0, math.pi)
         d = Vector((math.cos(ang), math.sin(ang), rr.uniform(-0.15, 0.15))) * L / 2
         parts.append(bone(f"{name}_{i}", Vector((p.x, p.y, z)) - d, Vector((p.x, p.y, z)) + d,
-                          rr.uniform(0.014, 0.022), mat))
+                          rr.uniform(0.010, 0.016), mat))
     return join(parts, name)
 
 
