@@ -1,0 +1,323 @@
+{
+ "items": [
+  {
+   "diff": "rock_moss_set_02_diff.jpg",
+   "nor": "rock_moss_set_02_nor.jpg",
+   "name": "rock_moss_set_02"
+  },
+  {
+   "diff": "wooden_stool_02_diff.jpg",
+   "nor": "wooden_stool_02_nor.jpg",
+   "mask": "wooden_stool_02_mask.png",
+   "name": "wooden_stool_02"
+  },
+  {
+   "diff": "wooden_barrels_01_barrel02_diff.jpg",
+   "nor": "wooden_barrels_01_barrel02_nor.jpg",
+   "mask": "wooden_barrels_01_barrel02_mask.png",
+   "name": "wooden_barrels_01_barrel02"
+  },
+  {
+   "tint": [
+    0.62,
+    0.6,
+    0.58
+   ],
+   "smooth_mul": 0.888888888888889,
+   "diff": "Lair_Rock_diff.jpg",
+   "nor": "Lair_Rock_nor.jpg",
+   "mask": "Lair_Rock_mask.png",
+   "name": "Lair_Rock"
+  },
+  {
+   "diff": "wooden_bowl_01_diff.jpg",
+   "nor": "wooden_bowl_01_nor.jpg",
+   "mask": "wooden_bowl_01_mask.png",
+   "name": "wooden_bowl_01"
+  },
+  {
+   "diff": "ceramic_pot_diff.jpg",
+   "nor": "ceramic_pot_nor.jpg",
+   "mask": "ceramic_pot_mask.png",
+   "name": "ceramic_pot"
+  },
+  {
+   "diff": "wooden_spoon_diff.jpg",
+   "nor": "wooden_spoon_nor.jpg",
+   "mask": "wooden_spoon_mask.png",
+   "name": "wooden_spoon"
+  },
+  {
+   "diff": "treasure_chest_diff.jpg",
+   "nor": "treasure_chest_nor.jpg",
+   "mask": "treasure_chest_mask.png",
+   "name": "treasure_chest"
+  },
+  {
+   "diff": "yellow_onion_diff.jpg",
+   "nor": "yellow_onion_nor.jpg",
+   "mask": "yellow_onion_mask.png",
+   "name": "yellow_onion"
+  },
+  {
+   "diff": "wooden_bucket_01_diff.jpg",
+   "nor": "wooden_bucket_01_nor.jpg",
+   "mask": "wooden_bucket_01_mask.png",
+   "name": "wooden_bucket_01"
+  },
+  {
+   "diff": "machete_diff.jpg",
+   "nor": "machete_nor.jpg",
+   "mask": "machete_mask.png",
+   "name": "machete"
+  },
+  {
+   "diff": "spinning_wheel_01_diff.jpg",
+   "nor": "spinning_wheel_01_nor.jpg",
+   "mask": "spinning_wheel_01_mask.png",
+   "name": "spinning_wheel_01"
+  },
+  {
+   "diff": "stone_fire_pit_diff.jpg",
+   "nor": "stone_fire_pit_nor.jpg",
+   "mask": "stone_fire_pit_mask.png",
+   "name": "stone_fire_pit"
+  },
+  {
+   "diff": "wicker_basket_02_diff.jpg",
+   "nor": "wicker_basket_02_nor.jpg",
+   "mask": "wicker_basket_02_mask.png",
+   "name": "wicker_basket_02"
+  },
+  {
+   "diff": "rock_moss_set_01_diff.jpg",
+   "nor": "rock_moss_set_01_nor.jpg",
+   "name": "rock_moss_set_01"
+  },
+  {
+   "diff": "wooden_bucket_02_diff.jpg",
+   "nor": "wooden_bucket_02_nor.jpg",
+   "mask": "wooden_bucket_02_mask.png",
+   "name": "wooden_bucket_02"
+  },
+  {
+   "diff": "boulder_01_diff.jpg",
+   "nor": "boulder_01_nor.jpg",
+   "mask": "boulder_01_mask.png",
+   "name": "boulder_01"
+  },
+  {
+   "diff": "wooden_cutting_board_diff.jpg",
+   "nor": "wooden_cutting_board_nor.jpg",
+   "mask": "wooden_cutting_board_mask.png",
+   "name": "wooden_cutting_board"
+  },
+  {
+   "diff": "T_Drawing_diff.png",
+   "cutout": true,
+   "name": "T_Drawing"
+  },
+  {
+   "diff": "wooden_lantern_01_glass_diff.jpg",
+   "nor": "wooden_lantern_01_glass_nor.jpg",
+   "mask": "wooden_lantern_01_glass_mask.png",
+   "name": "wooden_lantern_01_glass"
+  },
+  {
+   "tint": [
+    0.7,
+    0.66,
+    0.6
+   ],
+   "smooth_mul": 1.0,
+   "diff": "Lair_Mud_diff.jpg",
+   "nor": "Lair_Mud_nor.jpg",
+   "mask": "Lair_Mud_mask.png",
+   "name": "Lair_Mud"
+  },
+  {
+   "diff": "dry_branches_medium_01_diff.jpg",
+   "nor": "dry_branches_medium_01_nor.jpg",
+   "mask": "dry_branches_medium_01_mask.png",
+   "name": "dry_branches_medium_01"
+  },
+  {
+   "diff": "wooden_crate_01_diff.jpg",
+   "nor": "wooden_crate_01_nor.jpg",
+   "mask": "wooden_crate_01_mask.png",
+   "name": "wooden_crate_01"
+  },
+  {
+   "diff": "wooden_barrels_01_pieces_diff.jpg",
+   "nor": "wooden_barrels_01_pieces_nor.jpg",
+   "mask": "wooden_barrels_01_pieces_mask.png",
+   "name": "wooden_barrels_01_pieces"
+  },
+  {
+   "diff": "sweet_potato_diff.jpg",
+   "nor": "sweet_potato_nor.jpg",
+   "mask": "sweet_potato_mask.png",
+   "name": "sweet_potato"
+  },
+  {
+   "diff": "namaqualand_boulder_05_diff.jpg",
+   "nor": "namaqualand_boulder_05_nor.jpg",
+   "mask": "namaqualand_boulder_05_mask.png",
+   "name": "namaqualand_boulder_05"
+  },
+  {
+   "diff": "wooden_crate_02_diff.jpg",
+   "nor": "wooden_crate_02_nor.jpg",
+   "mask": "wooden_crate_02_mask.png",
+   "name": "wooden_crate_02"
+  },
+  {
+   "diff": "wooden_lantern_01_diff.jpg",
+   "nor": "wooden_lantern_01_nor.jpg",
+   "mask": "wooden_lantern_01_mask.png",
+   "name": "wooden_lantern_01"
+  },
+  {
+   "diff": "wooden_barrels_01_barrel01_diff.jpg",
+   "nor": "wooden_barrels_01_barrel01_nor.jpg",
+   "mask": "wooden_barrels_01_barrel01_mask.png",
+   "name": "wooden_barrels_01_barrel01"
+  },
+  {
+   "tint": [
+    0.6,
+    0.55,
+    0.5
+   ],
+   "smooth_mul": 0.8,
+   "diff": "Lair_Rust_diff.jpg",
+   "nor": "Lair_Rust_nor.jpg",
+   "mask": "Lair_Rust_mask.png",
+   "name": "Lair_Rust"
+  },
+  {
+   "diff": "wooden_axe_diff.jpg",
+   "nor": "wooden_axe_nor.jpg",
+   "mask": "wooden_axe_mask.png",
+   "name": "wooden_axe"
+  },
+  {
+   "tint": [
+    0.55,
+    0.48,
+    0.4
+   ],
+   "smooth_mul": 0.8,
+   "diff": "Lair_Cloth_diff.jpg",
+   "nor": "Lair_Cloth_nor.jpg",
+   "mask": "Lair_Cloth_mask.png",
+   "name": "Lair_Cloth"
+  },
+  {
+   "diff": "wicker_basket_01_diff.jpg",
+   "nor": "wicker_basket_01_nor.jpg",
+   "mask": "wicker_basket_01_mask.png",
+   "name": "wicker_basket_01"
+  },
+  {
+   "color": [
+    0.30000001192092896,
+    0.25999999046325684,
+    0.1899999976158142
+   ],
+   "smoothness": 0.30000001192092896,
+   "name": "Lair_Bone"
+  },
+  {
+   "diff": "wooden_bowl_02_diff.jpg",
+   "nor": "wooden_bowl_02_nor.jpg",
+   "mask": "wooden_bowl_02_mask.png",
+   "name": "wooden_bowl_02"
+  },
+  {
+   "diff": "I_Drawing_diff.png",
+   "cutout": true,
+   "name": "I_Drawing"
+  },
+  {
+   "diff": "tree_stump_01_diff.jpg",
+   "nor": "tree_stump_01_nor.jpg",
+   "mask": "tree_stump_01_mask.png",
+   "name": "tree_stump_01"
+  },
+  {
+   "diff": "hatchet_diff.jpg",
+   "nor": "hatchet_nor.jpg",
+   "mask": "hatchet_mask.png",
+   "name": "hatchet"
+  },
+  {
+   "color": [
+    1.0,
+    0.9200000166893005,
+    0.75
+   ],
+   "smoothness": 0.699999988079071,
+   "emission": [
+    1.0,
+    0.8500000238418579,
+    0.550000011920929
+   ],
+   "emission_strength": 4.0,
+   "name": "Lair_Shining"
+  },
+  {
+   "diff": "jug_01_diff.jpg",
+   "nor": "jug_01_nor.jpg",
+   "mask": "jug_01_mask.png",
+   "name": "jug_01"
+  },
+  {
+   "diff": "root_cluster_01_diff.jpg",
+   "nor": "root_cluster_01_nor.jpg",
+   "mask": "root_cluster_01_mask.png",
+   "name": "root_cluster_01"
+  },
+  {
+   "tint": [
+    0.55,
+    0.48,
+    0.42
+   ],
+   "smooth_mul": 0.8,
+   "diff": "Lair_Wood_diff.jpg",
+   "nor": "Lair_Wood_nor.jpg",
+   "mask": "Lair_Wood_mask.png",
+   "name": "Lair_Wood"
+  },
+  {
+   "tint": [
+    0.75,
+    0.68,
+    0.55
+   ],
+   "smooth_mul": 0.8,
+   "diff": "Lair_Straw_diff.jpg",
+   "nor": "Lair_Straw_nor.jpg",
+   "mask": "Lair_Straw_mask.png",
+   "name": "Lair_Straw"
+  },
+  {
+   "diff": "carved_wooden_elephant_diff.jpg",
+   "nor": "carved_wooden_elephant_nor.jpg",
+   "name": "carved_wooden_elephant"
+  },
+  {
+   "diff": "root_cluster_02_diff.jpg",
+   "nor": "root_cluster_02_nor.jpg",
+   "mask": "root_cluster_02_mask.png",
+   "name": "root_cluster_02"
+  },
+  {
+   "diff": "boulder_02_diff.jpg",
+   "nor": "boulder_02_nor.jpg",
+   "mask": "boulder_02_mask.png",
+   "name": "boulder_02"
+  }
+ ]
+}

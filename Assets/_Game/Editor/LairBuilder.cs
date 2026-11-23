@@ -182,6 +182,9 @@ namespace FalseParadise.EditorTools
                 else if (n.StartsWith("Light_")) lights.Add(t);
                 else if (n.StartsWith("Zone__")) zones.Add(t);
 
+                if (n.Length > 8 && n.Substring(1, 3) == "_P_")
+                    SpawnProp(t, n.Substring(4, n.Length - 8), mats);   // S_P_<model>_NNN
+
                 bool isMesh = t.GetComponent<MeshFilter>() != null;
                 if (isMesh && NeedsCollider(n)) t.gameObject.AddComponent<MeshCollider>();
                 if (isMesh && n != "Cage_Door" && n != "Shining_One")
@@ -295,10 +298,36 @@ namespace FalseParadise.EditorTools
             Debug.Log($"[False Paradise] Этаж 1 собран: {ScenePath}");
         }
 
+        /// <summary>Скан-модель из Props/&lt;model&gt;.fbx в точке, заданной пустышкой из Blender.</summary>
+        static void SpawnProp(Transform anchor, string model, Dictionary<string, Material> mats)
+        {
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/Props/{model}.fbx");
+            if (src == null) { Debug.LogWarning("Goblin Lair: нет пропа " + model); return; }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(src, anchor);
+            PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var arr = r.sharedMaterials;
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    if (arr[i] == null) continue;
+                    string key = arr[i].name.Replace(" (Instance)", "").Replace(".", "_");
+                    if (mats.TryGetValue(key, out var m)) arr[i] = m;
+                }
+                r.sharedMaterials = arr;
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject,
+                    StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.ReflectionProbeStatic);
+                if (NeedsCollider(model)) r.gameObject.AddComponent<MeshCollider>();
+            }
+        }
+
         static bool NeedsCollider(string n)
         {
             if (n == "Lair_Cave" || n == "Cage_Door" || n.StartsWith("S_Cage") || n.StartsWith("S_Support")) return true;
-            string[] solid = { "barrel", "crate", "boulder", "stump", "chest", "fire_pit", "rock_moss", "spinning", "KitchenTable" };
+            string[] solid = { "barrel", "crate", "boulder", "stump", "chest", "fire_pit", "rock_moss", "spinning" };
             foreach (var k in solid) if (n.Contains(k)) return true;
             return false;
         }

@@ -36,6 +36,10 @@ def log(*a):
 
 # ---------------------------------------------------------------- Poly Haven models
 TEMPLATES = {}
+TRI_BUDGET = {"root_cluster_01": 6000, "root_cluster_02": 6000, "namaqualand_boulder_05": 1200,
+              "namaqualand_boulder_02": 5000, "boulder_01": 5000, "rock_moss_set_01": 7000,
+              "rock_moss_set_02": 7000, "treasure_chest": 9000, "spinning_wheel_01": 9000,
+              "tree_stump_01": 5000, "dry_branches_medium_01": 3000}
 
 
 def load_model(name):
@@ -55,6 +59,12 @@ def load_model(name):
     if len(meshes) > 1:
         bpy.ops.object.join()
     ob = bpy.context.active_object
+    tris = sum(len(p.vertices) - 2 for p in ob.data.polygons)
+    budget = TRI_BUDGET.get(name, 8000)
+    if tris > budget:  # game-res LOD; the scanned detail stays in the normal map
+        mod = ob.modifiers.new("dec", "DECIMATE")
+        mod.ratio = budget / tris
+        bpy.ops.object.modifier_apply(modifier="dec")
     for n in new_names:
         o = bpy.data.objects.get(n)
         if o is not None and o != ob:
@@ -87,7 +97,8 @@ def place(model, layer, x, y, z_hint, yaw=None, scale=1.0, mode="floor", ray=Non
     ob = tpl.copy()
     ob.data = tpl.data
     prefix = {"both": "S", "illusion": "I", "truth": "T"}[layer]
-    ob.name = name or f"{prefix}_{model}_{len(PLACED):03d}"
+    ob.name = f"{prefix}_{model}_{len(PLACED):03d}"
+    ob["model"] = model
     ob.location = (x, y, z)
     ob.rotation_euler = (math.pi if mode == "ceiling" else 0, 0, RNG.uniform(0, 2 * math.pi) if yaw is None else yaw)
     ob.scale = (scale,) * 3
@@ -250,7 +261,7 @@ def build_level(ray, mats):
     place("wicker_basket_01", "truth", x - 4.6, y - 1.2, fz, ray=ray)
     # the toy (item 1) next to the smallest bed
     tz = floor_at(ray, x - 4.7, y + 2.0, fz)
-    toy = place("carved_wooden_elephant", "truth", x - 4.7, y + 2.0, fz, yaw=1.0, ray=ray, scale=1.0, name="T_Toy")
+    place("carved_wooden_elephant", "truth", x - 4.7, y + 2.0, fz, yaw=1.0, ray=ray, scale=1.0)
     props.bone_pile("I_Toy", (x - 4.7, y + 2.0, tz), ray, 5, bone_mat, 0.15, 4)
     empty("Item_Toy", (x - 4.7, y + 2.0, tz + 0.15))
     # the family drawing (item 2) on the west wall
@@ -264,7 +275,7 @@ def build_level(ray, mats):
     hit = ray.cast(origin, (-1, 0.15, 0), 10)[0]
     empty("Item_Drawing", hit + Vector((0.35, 0, 0)) if hit else origin)
     # kitchen corner (north)
-    place("wooden_crate_02", "both", x + 1.0, y + 7.5, fz, yaw=0.1, ray=ray, name="S_KitchenTable")
+    place("wooden_crate_02", "both", x + 1.0, y + 7.5, fz, yaw=0.1, ray=ray)
     top = floor_at(ray, x + 1.0, y + 7.5, fz) + 0.62
     for m, dx, dy in (("wooden_bowl_01", -0.2, 0.1), ("jug_01", 0.25, -0.15), ("yellow_onion", 0.05, -0.25),
                       ("sweet_potato", -0.25, -0.2), ("wooden_cutting_board", 0.0, 0.2), ("wooden_spoon", 0.2, 0.25)):
@@ -346,8 +357,11 @@ def export_textures(out_dir):
     os.makedirs(tdir, exist_ok=True)
     manifest = {}
 
-    def mask_from_arm(src, dst):
-        a = np.array(Image.open(src).convert("RGB")).astype(np.float32) / 255
+    def mask_from_arm(src, dst, sz):
+        im = Image.open(src).convert("RGB")
+        if max(im.size) > sz:
+            im = im.resize((sz, sz), Image.LANCZOS)
+        a = np.array(im).astype(np.float32) / 255
         m = np.zeros(a.shape[:2] + (4,), np.float32)
         m[..., 0] = a[..., 2]
         m[..., 1] = a[..., 0]
@@ -390,19 +404,30 @@ def export_textures(out_dir):
             if b is not None and b.inputs["Emission Strength"].default_value > 0:
                 entry["emission"] = list(b.inputs["Emission Color"].default_value)[:3]
                 entry["emission_strength"] = b.inputs["Emission Strength"].default_value
+        big = name in ("Lair_Rock", "Lair_Mud")
+        size = 2048 if big else 1024
+
+        def fit(src, dst, sz):
+            im = Image.open(src)
+            if max(im.size) > sz:
+                im = im.resize((sz, sz), Image.LANCZOS)
+            if dst.endswith(".jpg"):
+                im.convert("RGB").save(dst, quality=88)
+            else:
+                im.save(dst)
         if diff:
             ext = os.path.splitext(diff)[1]
             dst = os.path.join(tdir, f"{name}_diff{ext}")
             if os.path.abspath(diff) != os.path.abspath(dst):
-                shutil.copy(diff, dst)
+                fit(diff, dst, size)
             entry["diff"] = os.path.basename(dst)
             if "drawing" in diff.lower():
                 entry["cutout"] = True
         if nor:
-            shutil.copy(nor, os.path.join(tdir, f"{name}_nor.jpg"))
+            fit(nor, os.path.join(tdir, f"{name}_nor.jpg"), size)
             entry["nor"] = f"{name}_nor.jpg"
         if arm:
-            mask_from_arm(arm, os.path.join(tdir, f"{name}_mask.png"))
+            mask_from_arm(arm, os.path.join(tdir, f"{name}_mask.png"), 1024 if big else 512)
             entry["mask"] = f"{name}_mask.png"
         entry["name"] = name
         manifest[name] = entry
@@ -411,7 +436,32 @@ def export_textures(out_dir):
     log("textures:", len(manifest), "materials")
 
 
+def export_props(out_dir):
+    """One FBX per scanned model (Props/<model>.fbx), origin at the bottom centre."""
+    pdir = os.path.join(out_dir, "Props")
+    os.makedirs(pdir, exist_ok=True)
+    for name, t in TEMPLATES.items():
+        t.location = (0, 0, 0)
+        t.name = name
+        bpy.ops.object.select_all(action="DESELECT")
+        t.hide_set(False)
+        t.select_set(True)
+        bpy.context.view_layer.objects.active = t
+        bpy.ops.export_scene.fbx(
+            filepath=os.path.join(pdir, name + ".fbx"), use_selection=True, object_types={"MESH"},
+            apply_unit_scale=True, apply_scale_options="FBX_SCALE_UNITS", axis_forward="-Z", axis_up="Y",
+            mesh_smooth_type="FACE", use_tspace=True, bake_anim=False, path_mode="STRIP")
+    log("props exported:", len(TEMPLATES))
+
+
 def export_fbx(out_dir):
+    # scanned prop instances -> empties "<L>_P_<model>_<NNN>" (Unity instantiates Props/<model>.fbx)
+    for ob in PLACED:
+        model = ob["model"]
+        e = bpy.data.objects.new(ob.name.replace(f"_{model}_", f"_P_{model}_", 1), None)
+        e.matrix_world = ob.matrix_world.copy()
+        bpy.context.collection.objects.link(e)
+        bpy.data.objects.remove(ob, do_unlink=True)
     for t in TEMPLATES.values():
         bpy.data.objects.remove(t, do_unlink=True)
     for o in bpy.data.objects:
@@ -493,6 +543,7 @@ def main():
         previews(a.out, "illusion", a.samples)
         previews(a.out, "truth", a.samples)
     export_textures(stage)
+    export_props(stage)
     export_fbx(stage)
 
 
