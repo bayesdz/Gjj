@@ -30,6 +30,9 @@ namespace FalseParadise
         string inspectTitle;
         string inspectText;
         float hurtFlash;
+        string subtitleSpeaker;
+        string subtitleText;
+        float subtitleUntil;
         readonly Queue<string> log = new Queue<string>();
 
         GUIStyle center, box, title, small;
@@ -70,6 +73,15 @@ namespace FalseParadise
             instance.inspectTitle = itemTitle;
             instance.inspectText = text;
             if (instance.controller != null) instance.controller.InputLocked = true;
+        }
+
+        /// <summary>Субтитр внизу экрана (реплики Гласа, богини, NPC).</summary>
+        public static void ShowSubtitle(string speaker, string text, float seconds)
+        {
+            if (instance == null) return;
+            instance.subtitleSpeaker = speaker;
+            instance.subtitleText = text;
+            instance.subtitleUntil = Time.unscaledTime + seconds;
         }
 
         static void CloseInspect()
@@ -148,6 +160,21 @@ namespace FalseParadise
                     : eye.Ready ? "Око: готово [Q]"
                     : $"Око: перезарядка {eye.CooldownRemaining:0.0} с";
                 GUI.Label(new Rect(20, h - 36, 400, 24), s, new GUIStyle(small) { richText = true });
+            }
+
+            // Субтитры
+            if (!string.IsNullOrEmpty(subtitleText) && Time.unscaledTime < subtitleUntil)
+            {
+                var r = new Rect(w / 2 - 420, h - 170, 840, 90);
+                var prev = GUI.color;
+                GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = prev;
+                string line = string.IsNullOrEmpty(subtitleSpeaker)
+                    ? subtitleText
+                    : $"<color=#f5d38a><b>{subtitleSpeaker}:</b></color> {subtitleText}";
+                var st = new GUIStyle(center) { wordWrap = true, fontSize = 20 };
+                GUI.Label(new Rect(r.x + 16, r.y, r.width - 32, r.height), line, st);
             }
 
             // Окно осмотра

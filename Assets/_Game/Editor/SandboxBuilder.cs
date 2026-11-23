@@ -50,8 +50,37 @@ namespace FalseParadise.EditorTools
             Box(walls, "Cover", new Vector3(0, 0.75f, -4), new Vector3(4, 1.5f, 0.8f), wallMat);
 
             // Игрок
+            var cam = CreatePlayer(new Vector3(0f, 1f, -14f));
+
+            // HUD
+            new GameObject("HUD").AddComponent<GameHUD>();
+
+            // Атмосфера подземелья
+            BuildAtmosphere(cam, walls);
+
+            // Враги
+            Enemy("Goblin_01", "goblin_01", new Vector3(-4f, 0f, 2f), 1f, 100f, illusionMat, truthMat, faceMat);
+            Enemy("Goblin_02", "goblin_02", new Vector3(4f, 0f, 4f), 1f, 100f, illusionMat, truthMat, faceMat);
+            Enemy("OgreChief", MercyCounter.OgreChiefId, new Vector3(0f, 0f, 13f), 1.6f, 200f, illusionMat, truthMat, faceMat);
+
+            // Предметы
+            Item("Toy", "floor1_toy", "Детская игрушка", new Vector3(-10f, 0.25f, -8f), itemMat,
+                "Трофей их кровавых обрядов. Не трогайте.",
+                "Деревянная лошадка. На боку неровно вырезано имя ребёнка.");
+            Item("Drawing", "floor1_drawing", "Рисунок на камне", new Vector3(10f, 0.25f, -8f), itemMat,
+                "Знаки тёмного культа. Они призывают смерть.",
+                "Детский рисунок углём: большая семья гоблинов у костра.");
+
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            AddToBuildSettings(ScenePath);
+            Debug.Log($"[False Paradise] Сцена собрана: {ScenePath}. Нажмите Play.");
+        }
+
+        /// <summary>Игрок со всеми компонентами и камерой. Возвращает камеру.</summary>
+        internal static Camera CreatePlayer(Vector3 position)
+        {
             var player = new GameObject("Player") { tag = "Player" };
-            player.transform.position = new Vector3(0f, 1f, -14f);
+            player.transform.position = position;
             var cc = player.AddComponent<CharacterController>();
             cc.height = 1.8f;
             cc.radius = 0.35f;
@@ -78,31 +107,10 @@ namespace FalseParadise.EditorTools
             cam.transform.localRotation = Quaternion.identity;
             cam.nearClipPlane = 0.05f;
             cam.gameObject.AddComponent<CameraShake>();
+            cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
 
             SetRef(fpc, "cameraPivot", pivot);
-
-            // HUD
-            new GameObject("HUD").AddComponent<GameHUD>();
-
-            // Атмосфера подземелья
-            BuildAtmosphere(cam, walls);
-
-            // Враги
-            Enemy("Goblin_01", "goblin_01", new Vector3(-4f, 0f, 2f), 1f, 100f, illusionMat, truthMat, faceMat);
-            Enemy("Goblin_02", "goblin_02", new Vector3(4f, 0f, 4f), 1f, 100f, illusionMat, truthMat, faceMat);
-            Enemy("OgreChief", MercyCounter.OgreChiefId, new Vector3(0f, 0f, 13f), 1.6f, 200f, illusionMat, truthMat, faceMat);
-
-            // Предметы
-            Item("Toy", "floor1_toy", "Детская игрушка", new Vector3(-10f, 0.25f, -8f), itemMat,
-                "Трофей их кровавых обрядов. Не трогайте.",
-                "Деревянная лошадка. На боку неровно вырезано имя ребёнка.");
-            Item("Drawing", "floor1_drawing", "Рисунок на камне", new Vector3(10f, 0.25f, -8f), itemMat,
-                "Знаки тёмного культа. Они призывают смерть.",
-                "Детский рисунок углём: большая семья гоблинов у костра.");
-
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            AddToBuildSettings(ScenePath);
-            Debug.Log($"[False Paradise] Сцена собрана: {ScenePath}. Нажмите Play.");
+            return cam;
         }
 
         static void BuildAtmosphere(Camera cam, Transform walls)
@@ -218,7 +226,7 @@ namespace FalseParadise.EditorTools
             return profile;
         }
 
-        static Material EmissiveMat(string name, Color color, float intensity)
+        internal static Material EmissiveMat(string name, Color color, float intensity)
         {
             string path = $"{MatDir}/{name}.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -296,7 +304,7 @@ namespace FalseParadise.EditorTools
             SetString(item, "truthText", truth);
         }
 
-        static void Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
+        internal static void Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
@@ -306,7 +314,7 @@ namespace FalseParadise.EditorTools
             go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
-        static Material Mat(string name, Color color)
+        internal static Material Mat(string name, Color color)
         {
             string path = $"{MatDir}/{name}.mat";
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -323,7 +331,7 @@ namespace FalseParadise.EditorTools
             return m;
         }
 
-        static void SetRef(Object target, string field, Object value)
+        internal static void SetRef(Object target, string field, Object value)
         {
             var so = new SerializedObject(target);
             var p = so.FindProperty(field);
@@ -332,7 +340,7 @@ namespace FalseParadise.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        static void SetString(Object target, string field, string value)
+        internal static void SetString(Object target, string field, string value)
         {
             var so = new SerializedObject(target);
             var p = so.FindProperty(field);
@@ -341,7 +349,7 @@ namespace FalseParadise.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        static void SetFloat(Object target, string field, float value)
+        internal static void SetFloat(Object target, string field, float value)
         {
             var so = new SerializedObject(target);
             var p = so.FindProperty(field);
@@ -350,7 +358,7 @@ namespace FalseParadise.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path)) return;
             int slash = path.LastIndexOf('/');
@@ -359,7 +367,7 @@ namespace FalseParadise.EditorTools
             AssetDatabase.CreateFolder(parent, path.Substring(slash + 1));
         }
 
-        static void AddToBuildSettings(string path)
+        internal static void AddToBuildSettings(string path)
         {
             var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
             foreach (var s in scenes) if (s.path == path) return;

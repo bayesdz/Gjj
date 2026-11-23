@@ -16,6 +16,8 @@ namespace FalseParadise
         public static event Action<string> NpcTalked;        // npcId
         public static event Action<string> GlasDisobeyed;    // momentId
         public static event Action<string> NarrationRequest; // ключ реплики, например "floor1.goblin_first_seen"
+        public static event Action ParadiseFallStarted;      // начался глитч рая
+        public static event Action ParadiseFallen;           // рай стал адом
 
         public static void RaiseEnemySpared(string enemyId) { Log("EnemySpared", enemyId); EnemySpared?.Invoke(enemyId); }
         public static void RaiseEnemyKilled(string enemyId) { Log("EnemyKilled", enemyId); EnemyKilled?.Invoke(enemyId); }
@@ -24,6 +26,8 @@ namespace FalseParadise
         public static void RaiseNpcTalked(string npcId) { Log("NpcTalked", npcId); NpcTalked?.Invoke(npcId); }
         public static void RaiseGlasDisobeyed(string momentId) { Log("GlasDisobeyed", momentId); GlasDisobeyed?.Invoke(momentId); }
         public static void RaiseNarrationRequest(string lineKey) { Log("NarrationRequest", lineKey); NarrationRequest?.Invoke(lineKey); }
+        public static void RaiseParadiseFallStarted() { Log("ParadiseFallStarted", ""); ParadiseFallStarted?.Invoke(); }
+        public static void RaiseParadiseFallen() { Log("ParadiseFallen", ""); ParadiseFallen?.Invoke(); }
 
         /// <summary>Последние события для отладочного HUD.</summary>
         public static event Action<string> Logged;
@@ -45,6 +49,8 @@ namespace FalseParadise
             NpcTalked = null;
             GlasDisobeyed = null;
             NarrationRequest = null;
+            ParadiseFallStarted = null;
+            ParadiseFallen = null;
             Logged = null;
         }
     }
