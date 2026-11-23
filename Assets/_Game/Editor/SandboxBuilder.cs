@@ -195,7 +195,7 @@ namespace FalseParadise.EditorTools
             volume.sharedProfile = PostProfile();
         }
 
-        static VolumeProfile PostProfile()
+        internal static VolumeProfile PostProfile()
         {
             string path = $"{MatDir}/DungeonPost.asset";
             var existing = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
@@ -242,7 +242,7 @@ namespace FalseParadise.EditorTools
             return m;
         }
 
-        static void Enemy(string name, string id, Vector3 pos, float scale, float hp,
+        internal static GameObject Enemy(string name, string id, Vector3 pos, float scale, float hp,
             Material illusionMat, Material truthMat, Material faceMat)
         {
             var root = new GameObject(name);
@@ -286,9 +286,10 @@ namespace FalseParadise.EditorTools
 
             SetRef(illusion, "illusionModel", illusionModel);
             SetRef(illusion, "truthModel", truthModel);
+            return root;
         }
 
-        static GameObject Model(Transform parent, string name, Material body, Material face)
+        internal static GameObject Model(Transform parent, string name, Material body, Material face)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = name;

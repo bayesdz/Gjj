@@ -56,3 +56,4 @@ Thumbs.db
 Tools/Blender/goblin/_mh_cache/
 __pycache__/
 *.blend1
+Tools/Blender/_ph_cache/

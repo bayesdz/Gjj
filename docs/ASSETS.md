@@ -20,6 +20,8 @@
 
 | Ассет | Тип (модель, текстура, звук, музыка, шрифт) | Автор | Лицензия | Ссылка | Где используется |
 |---|---|---|---|---|---|
+| Poly Haven: текстуры rock_wall_10, brown_mud_03, rough_wood, reed_roof_04, rusty_metal_03, hessian_230 | Текстуры (PBR) | Poly Haven (авторы указаны на страницах ассетов) | CC0 | https://polyhaven.com | Этаж 1, Логово гоблинов |
+| Poly Haven: 3D-модели (бочки, ящики, вёдра, кострище, фонарь, камни, корни, пни, табурет, корзины, миски, кувшин, горшок, прялка, деревянный слон, топоры, мачете, сундук и др., список в `Tools/Blender/lair/assets.py`) | Модели со сканированными текстурами | Poly Haven (авторы указаны на страницах ассетов) | CC0 | https://polyhaven.com/models | Этаж 1, Логово гоблинов |
 | MakeHuman base mesh, morph targets, default skeleton + weights | Базовая 3D-модель человека, морфы, скелет | MakeHuman Team (Data Collection AB, J. Palmius, J. Hauquier) | CC0 | https://github.com/makehumancommunity/makehuman | Основа модели гоблина (`Art/Characters/Goblin`), переработана скриптами `Tools/Blender/goblin` |
 | | | | | | |
 
