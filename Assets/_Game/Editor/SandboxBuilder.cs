@@ -1,6 +1,8 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace FalseParadise.EditorTools
 {
@@ -25,7 +27,7 @@ namespace FalseParadise.EditorTools
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
-            var floorMat = Mat("Floor", new Color(0.32f, 0.30f, 0.28f));
+            var floorMat = Mat("Floor", new Color(0.30f, 0.27f, 0.24f));
             var wallMat = Mat("Wall", new Color(0.22f, 0.21f, 0.24f));
             var illusionMat = Mat("Illusion", new Color(0.55f, 0.05f, 0.05f));
             var truthMat = Mat("Truth", new Color(0.35f, 0.6f, 1f));
@@ -82,6 +84,9 @@ namespace FalseParadise.EditorTools
             // HUD
             new GameObject("HUD").AddComponent<GameHUD>();
 
+            // Атмосфера подземелья
+            BuildAtmosphere(cam, walls);
+
             // Враги
             Enemy("Goblin_01", "goblin_01", new Vector3(-4f, 0f, 2f), 1f, 100f, illusionMat, truthMat, faceMat);
             Enemy("Goblin_02", "goblin_02", new Vector3(4f, 0f, 4f), 1f, 100f, illusionMat, truthMat, faceMat);
@@ -98,6 +103,135 @@ namespace FalseParadise.EditorTools
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings(ScenePath);
             Debug.Log($"[False Paradise] Сцена собрана: {ScenePath}. Нажмите Play.");
+        }
+
+        static void BuildAtmosphere(Camera cam, Transform walls)
+        {
+            // Без неба: тёмный фон и туман, дальние стены растворяются в темноте
+            RenderSettings.skybox = null;
+            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.07f, 0.05f, 0.07f);
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = 0.06f;
+            RenderSettings.fogColor = new Color(0.08f, 0.03f, 0.04f);
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = RenderSettings.fogColor;
+            cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
+
+            // Солнца в подземелье нет: почти выключаем
+            foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (l.type != LightType.Directional) continue;
+                l.intensity = 0.05f;
+                l.color = new Color(0.5f, 0.55f, 0.8f);
+                l.shadows = LightShadows.None;
+            }
+
+            // Фонарь игрока: тёплый, мягкий, без теней
+            var lantern = new GameObject("Lantern").AddComponent<Light>();
+            lantern.transform.SetParent(cam.transform, false);
+            lantern.transform.localPosition = new Vector3(0.3f, -0.2f, 0.2f);
+            lantern.type = LightType.Point;
+            lantern.range = 7f;
+            lantern.intensity = 1.2f;
+            lantern.color = new Color(1f, 0.82f, 0.6f);
+            lantern.shadows = LightShadows.None;
+
+            // Факелы
+            var torchMat = EmissiveMat("TorchFlame", new Color(1f, 0.45f, 0.1f), 6f);
+            var mood = new GameObject("TruthMood").AddComponent<TruthMood>();
+            var torchList = new System.Collections.Generic.List<Light>();
+            Vector3[] spots =
+            {
+                new Vector3(-7f, 2.6f, 4.1f), new Vector3(7f, 2.6f, 4.1f),
+                new Vector3(-19.3f, 2.6f, -10f), new Vector3(19.3f, 2.6f, -10f),
+                new Vector3(-19.3f, 2.6f, 10f), new Vector3(19.3f, 2.6f, 10f),
+                new Vector3(-6f, 2.6f, 19.3f), new Vector3(6f, 2.6f, 19.3f),
+                new Vector3(0f, 2.6f, -19.3f)
+            };
+            int i = 0;
+            foreach (var p in spots)
+            {
+                var torch = new GameObject($"Torch_{++i}").transform;
+                torch.SetParent(walls, false);
+                torch.position = p;
+
+                var flame = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                flame.name = "Flame";
+                Object.DestroyImmediate(flame.GetComponent<Collider>());
+                flame.transform.SetParent(torch, false);
+                flame.transform.localScale = new Vector3(0.15f, 0.3f, 0.15f);
+                flame.GetComponent<Renderer>().sharedMaterial = torchMat;
+
+                var l = new GameObject("Light").AddComponent<Light>();
+                l.transform.SetParent(torch, false);
+                l.transform.localPosition = new Vector3(0f, 0.3f, 0f);
+                l.type = LightType.Point;
+                l.range = 9f;
+                l.intensity = 3f;
+                l.color = new Color(1f, 0.35f, 0.15f);
+                l.shadows = i <= 2 ? LightShadows.Soft : LightShadows.None;
+                l.gameObject.AddComponent<TorchFlicker>();
+                torchList.Add(l);
+            }
+            var so = new SerializedObject(mood);
+            var list = so.FindProperty("torches");
+            list.arraySize = torchList.Count;
+            for (int k = 0; k < torchList.Count; k++) list.GetArrayElementAtIndex(k).objectReferenceValue = torchList[k];
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // Постобработка: виньетка, свечение, кинематографичный тонмаппинг
+            var volume = new GameObject("Global Volume").AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.sharedProfile = PostProfile();
+        }
+
+        static VolumeProfile PostProfile()
+        {
+            string path = $"{MatDir}/DungeonPost.asset";
+            var existing = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
+            if (existing != null) return existing;
+
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            AssetDatabase.CreateAsset(profile, path);
+
+            var tone = profile.Add<Tonemapping>(true);
+            tone.mode.Override(TonemappingMode.ACES);
+
+            var bloom = profile.Add<Bloom>(true);
+            bloom.threshold.Override(0.9f);
+            bloom.intensity.Override(0.8f);
+            bloom.scatter.Override(0.65f);
+
+            var vignette = profile.Add<Vignette>(true);
+            vignette.intensity.Override(0.4f);
+            vignette.smoothness.Override(0.5f);
+
+            var color = profile.Add<ColorAdjustments>(true);
+            color.postExposure.Override(0.3f);
+            color.contrast.Override(18f);
+            color.saturation.Override(-12f);
+
+            foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
+            AssetDatabase.SaveAssets();
+            return profile;
+        }
+
+        static Material EmissiveMat(string name, Color color, float intensity)
+        {
+            string path = $"{MatDir}/{name}.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null) return existing;
+
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Standard");
+            var m = new Material(shader) { color = color };
+            m.EnableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", color * intensity);
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            AssetDatabase.CreateAsset(m, path);
+            return m;
         }
 
         static void Enemy(string name, string id, Vector3 pos, float scale, float hp,
@@ -175,13 +309,17 @@ namespace FalseParadise.EditorTools
         static Material Mat(string name, Color color)
         {
             string path = $"{MatDir}/{name}.mat";
-            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (existing != null) return existing;
-
-            var shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
-            var m = new Material(shader) { color = color };
-            AssetDatabase.CreateAsset(m, path);
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null) shader = Shader.Find("Standard");
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.color = color;
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.15f);
+            EditorUtility.SetDirty(m);
             return m;
         }
 
