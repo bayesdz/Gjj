@@ -7,6 +7,7 @@
 | ПО | Для чего | Лицензия |
 |---|---|---|
 | Unity 6 LTS | Движок | Unity Personal |
+| Blender 5.3 (модуль `bpy`) | Моделирование, риг, запекание текстур персонажей (`Tools/Blender`) | GPL (созданные файлы принадлежат авторам) |
 | | | |
 
 ## ИИ-сервисы и модели
@@ -19,6 +20,7 @@
 
 | Ассет | Тип (модель, текстура, звук, музыка, шрифт) | Автор | Лицензия | Ссылка | Где используется |
 |---|---|---|---|---|---|
+| MakeHuman base mesh, morph targets, default skeleton + weights | Базовая 3D-модель человека, морфы, скелет | MakeHuman Team (Data Collection AB, J. Palmius, J. Hauquier) | CC0 | https://github.com/makehumancommunity/makehuman | Основа модели гоблина (`Art/Characters/Goblin`), переработана скриптами `Tools/Blender/goblin` |
 | | | | | | |
 
 ## Заготовки команды, сделанные до фестиваля

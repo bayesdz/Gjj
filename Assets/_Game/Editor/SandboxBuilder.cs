@@ -262,8 +262,26 @@ namespace FalseParadise.EditorTools
             root.AddComponent<HitFlash>();
             var illusion = root.AddComponent<IllusionVisual>();
 
-            var illusionModel = Model(root.transform, "Illusion", illusionMat, faceMat);
-            var truthModel = Model(root.transform, "Truth", truthMat, faceMat);
+            GameObject illusionModel, truthModel;
+            var goblinArt = id.StartsWith("goblin")
+                ? AssetDatabase.LoadAssetAtPath<GameObject>(GoblinArtBuilder.PrefabPath)
+                : null;
+            if (goblinArt != null)
+            {
+                // Настоящая модель гоблина (Tools/Blender/goblin): рост 1.15 м
+                var visual = (GameObject)PrefabUtility.InstantiatePrefab(goblinArt, root.transform);
+                illusionModel = visual.transform.Find("Illusion").gameObject;
+                truthModel = visual.transform.Find("Truth").gameObject;
+                col.center = new Vector3(0f, 0.6f, 0f);
+                col.height = 1.2f;
+                col.radius = 0.3f;
+            }
+            else
+            {
+                illusionModel = Model(root.transform, "Illusion", illusionMat, faceMat);
+                truthModel = Model(root.transform, "Truth", truthMat, faceMat);
+            }
+            illusionModel.SetActive(true);
             truthModel.SetActive(false);
 
             SetRef(illusion, "illusionModel", illusionModel);

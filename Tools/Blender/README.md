@@ -1,0 +1,44 @@
+# Персонажи: пайплайн в Blender
+
+Модели персонажей собираются скриптами в Blender. Один запуск выдаёт готовые FBX и текстуры для Unity, поэтому любой член команды может пересобрать модель или поменять в ней что-то кодом.
+
+## Гоблин
+
+Шаги пайплайна такие же, как у студий, только инструменты бесплатные:
+
+| Этап | В студии | У нас |
+|---|---|---|
+| Анатомическая база | своя база или сканы | база MakeHuman (CC0) с морф-таргетами |
+| Форма персонажа | ZBrush | морфы, пропорции через кости, скульпт-кисти в коде (`goblin.py`) |
+| Детали high-poly | ZBrush | морщины, складки, костяшки, вены (`details.py`) |
+| Текстурирование | Substance Painter | процедурные материалы Cycles (`materials.py`) |
+| Запекание | Marmoset / Substance | Cycles bake: normal, AO, albedo, roughness (`bake.py`) |
+| Риг | Maya / 3ds Max | скелет MakeHuman с весами, кости названы как в Mixamo (Humanoid) |
+
+Облика два, у них общий меш и общий скелет:
+
+- **Illusion:** серо-зелёная больная кожа, шрамы, тёмные вены, светящиеся красные глаза с вертикальным зрачком, клыки, лохмотья и ремни.
+- **Truth:** тёплая здоровая кожа, обычные карие глаза, без клыков, льняная рубаха, штаны и верёвочный пояс.
+
+### Сборка
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install bpy==5.3.0 pillow
+cd Tools/Blender
+../../.venv/bin/python -m goblin.build --out /tmp/goblin --res 2048 --unity ../../Assets/_Game/Art/Characters/Goblin
+```
+
+Полная сборка в 2K занимает около 12 минут на 4 ядрах CPU. Для быстрой проверки используйте `--res 1024 --no-render`. При первом запуске скрипт скачивает данные MakeHuman в `goblin/_mh_cache/` (они в `.gitignore`). В `/tmp/goblin` появляются превью-рендеры обоих обликов и `goblin.blend`.
+
+### В Unity
+
+1. FBX и текстуры лежат в `Assets/_Game/Art/Characters/Goblin/`. Настройки импорта (Humanoid, нормал-карты) выставляет `GoblinArtBuilder`.
+2. Меню **False Paradise → Art → Build Goblin Prefab** создаёт URP-материалы и `Goblin_Visual.prefab` с детьми `Illusion` и `Truth`.
+3. **False Paradise → Build Sandbox Scene** ставит этот префаб гоблинам в песочнице.
+4. Анимации: скелет Humanoid, поэтому подходят клипы Mixamo и любые humanoid-клипы. Animator Controller с параметрами `Speed`, `Attack`, `Hit`, `Kneeling`, `Dead`, `Spared` назначается на оба облика.
+
+### Что подкрутить
+
+- Форма: `TARGETS` и `PROPORTIONS` в `goblin.py`, уши и нос в `goblin_sculpt`.
+- Цвета кожи: `ILLUSION_SKIN` и `TRUTH_SKIN` в `materials.py`.
+- Одежда: `build_clothes` в `goblin.py`, ткани в `setup_procedural_clothes` (`build.py`).

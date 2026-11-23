@@ -51,3 +51,8 @@ apikey*.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Blender pipeline: downloaded MakeHuman data and Python caches
+Tools/Blender/goblin/_mh_cache/
+__pycache__/
+*.blend1
