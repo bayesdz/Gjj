@@ -12,19 +12,24 @@ namespace FalseParadise
 
     /// <summary>
     /// Скрытый счётчик милосердия (docs/STORY.md, раздел 8).
-    /// Каждое действие засчитывается один раз (по id).
+    /// Каждое действие засчитывается один раз (по id), поэтому нафармить нельзя.
+    ///
+    /// Расчёт под 5 обычных врагов, 4 предмета и 1 диалог через Око:
+    ///   максимум = 5×2 + 4 + 1 + 3 (огр) = 18, порог концовки А = 9 и огр пощажён.
+    ///   Убил всех, но пощадил огра и всё осмотрел: 3 + 4 + 1 = 8 → концовка Б.
+    ///   Пощадил 3 врагов и огра: 6 + 3 = 9 → концовка А.
     /// </summary>
     public static class MercyCounter
     {
         public const string OgreChiefId = "ogre_chief";
 
-        public const int PointsSpare = 1;
+        public const int PointsSpare = 2;
         public const int PointsItem = 1;
         public const int PointsNpcTalk = 1;
         public const int PointsOgreChief = 3;
 
         /// <summary>Порог для концовки А. Подстраиваем на плейтесте.</summary>
-        public static int Threshold = 7;
+        public static int Threshold = 9;
 
         public static int Score { get; private set; }
         public static bool OgreChiefSpared { get; private set; }

@@ -39,8 +39,15 @@ namespace FalseParadise
         [Header("Иллюзия")]
         [SerializeField] IllusionVisual illusion;
         [Tooltip("Шанс на долю секунды показать настоящий облик при попадании")]
-        [Range(0f, 1f)] [SerializeField] float truthFlashChance = 0.35f;
-        [SerializeField] float truthFlashDuration = 0.12f;
+        [Range(0f, 1f)] [SerializeField] float truthFlashChance = 0.25f;
+        [SerializeField] float truthFlashDuration = 0.25f;
+        [Tooltip("Звук помех при мелькании настоящего облика")]
+        [SerializeField] AudioClip glitchClip;
+
+        // Первый удар по первому врагу в игре всегда показывает глитч: «мне показалось?»
+        static bool firstGlitchShown;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => firstGlitchShown = false;
 
         public string EnemyId => enemyId;
         public EnemyState State { get; private set; } = EnemyState.Idle;
@@ -213,8 +220,12 @@ namespace FalseParadise
             attackTimer = 0f; // удар прерывает замах
             foreach (var a in animators) AnimatorUtil.SetTrigger(a, HitHash);
 
-            if (illusion != null && Random.value < truthFlashChance)
+            if (illusion != null && !EyeOfTruth.Active && (!firstGlitchShown || Random.value < truthFlashChance))
+            {
+                firstGlitchShown = true;
                 illusion.FlashTruth(truthFlashDuration);
+                if (glitchClip != null) AudioSource.PlayClipAtPoint(glitchClip, transform.position + Vector3.up);
+            }
 
             if (canBeSpared && State != EnemyState.Kneel && health.Normalized <= kneelAtHealth)
                 EnterKneel();
