@@ -69,6 +69,7 @@ namespace FalseParadise.EditorTools
 
             var rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
             var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
+            var budget = Object.FindFirstObjectByType<ShadowBudget>();
             var prevTarget = cam.targetTexture;
             cam.targetTexture = rt;
 
@@ -77,6 +78,7 @@ namespace FalseParadise.EditorTools
                 var pos = new Vector3(s.from.x, Zone1Builder.Height(s.from.x, s.from.y) + Eye, s.from.y);
                 var target = new Vector3(s.to.x, Zone1Builder.Height(s.to.x, s.to.y) + Eye + s.lookY, s.to.y);
                 cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(target - pos));
+                if (budget != null) budget.ApplyFor(pos); // тени как в игре
 
                 // Два прохода: первый прогревает шейдеры и временные буферы
                 cam.Render();
