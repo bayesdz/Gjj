@@ -148,13 +148,13 @@ namespace FalseParadise.EditorTools
 
         internal static float Height(float x, float z)
         {
-            float h = FloorH(x, z) + (Noise(x, z, 0.4f, 700f) - 0.5f) * 0.5f;
+            float h = FloorH(x, z) + (Noise(x, z, 0.4f, 700f) - 0.5f) * 0.2f;
             float d = Sdf(x, z);
             if (d > 0f)
             {
                 float n = Noise(x, z, 0.12f, 900f);
                 float cliff = Smooth(0f, 4f, d) * (5f + 4f * n) + Smooth(2f, 20f, d) * (16f + 14f * n);
-                cliff += (Noise(x, z, 0.35f, 1100f) - 0.5f) * 3f * Smooth(0f, 3f, d);
+                cliff += (Noise(x, z, 0.22f, 1100f) - 0.5f) * 2f * Smooth(0f, 3f, d);
                 h += cliff;
             }
             float dc = ChasmSdf(x, z);
@@ -197,7 +197,7 @@ namespace FalseParadise.EditorTools
         static Material mCharcoal, mOchre, mBlack, mRune;
         static Material mGobSkin, mGobEyes, mGobSkinTrue, mGobEyesTrue, mTunic;
         static Material mShining, mShiningWing;
-        static Material pSmoke, pFire, pEmbers, pDust, gVeil;
+        static Material pSmoke, pFire, pHalo, pEmbers, pDust, gVeil;
 
         [MenuItem("False Paradise/Build Zone 1 (Goblin Lair)")]
         public static void Build()
@@ -309,8 +309,9 @@ namespace FalseParadise.EditorTools
             mShining = Emissive("Z1_Shining", new Color(1f, 0.74f, 0.4f), 1.5f);
             mShiningWing = Emissive("Z1_ShiningWing", new Color(1f, 0.64f, 0.26f), 1.9f);
 
-            pSmoke = Soft("Z1_Smoke", new Color(0.3f, 0.27f, 0.25f, 0.2f), 1f, false, 1.6f);
+            pSmoke = Soft("Z1_Smoke", new Color(0.4f, 0.33f, 0.27f, 0.2f), 1f, false, 1.6f);
             pFire = Soft("Z1_Fire", new Color(1f, 0.45f, 0.12f), 2.2f, true, 1.4f);
+            pHalo = Soft("Z1_Halo", new Color(1f, 0.5f, 0.18f), 0.5f, true, 2.6f);
             pEmbers = Soft("Z1_Embers", new Color(1f, 0.55f, 0.18f), 4f, true, 2f);
             pDust = Soft("Z1_Dust", new Color(1f, 0.8f, 0.55f), 1.2f, true, 2f);
             gVeil = Glow("Z1_GlowVeil", new Color(0.3f, 1f, 0.9f), 1.6f);
@@ -431,8 +432,8 @@ namespace FalseParadise.EditorTools
             for (int ix = 0; ix < nx; ix++)
             for (int iz = 0; iz < nz; iz++)
             {
-                float x = MinX + ix * Cell + (Hash(ix, iz, 1) - 0.5f) * Cell * 0.7f;
-                float z = MinZ + iz * Cell + (Hash(ix, iz, 2) - 0.5f) * Cell * 0.7f;
+                float x = MinX + ix * Cell + (Hash(ix, iz, 1) - 0.5f) * Cell * 0.45f;
+                float z = MinZ + iz * Cell + (Hash(ix, iz, 2) - 0.5f) * Cell * 0.45f;
                 pos[ix, iz] = new Vector3(x, Height(x, z), z);
                 sdf[ix, iz] = Sdf(x, z);
             }
@@ -474,6 +475,42 @@ namespace FalseParadise.EditorTools
             }
         }
 
+        /// <summary>Нормаль поля высот с лёгким сглаживанием (шаг 1.5 м).</summary>
+        static Vector3 HeightNormal(float x, float z)
+        {
+            const float e = 1.5f;
+            float dx = Height(x + e, z) - Height(x - e, z);
+            float dz = Height(x, z + e) - Height(x, z - e);
+            var n = new Vector3(-dx, 2f * e, -dz).normalized;
+            return n.y < 0.35f ? Vector3.up : n;
+        }
+
+        /// <summary>Сглаженная нормаль крутого склона (стены) или свода (ceiling = true, смотрит вниз).</summary>
+        static Vector3 SlopeNormal(float x, float z, bool ceiling)
+        {
+            const float e = 1.5f;
+            if (ceiling)
+            {
+                float cx = CeilingH(x + e, z) - CeilingH(x - e, z);
+                float cz = CeilingH(x, z + e) - CeilingH(x, z - e);
+                return new Vector3(cx, -2f * e, cz).normalized;
+            }
+            float dx = Height(x + e, z) - Height(x - e, z);
+            float dz = Height(x, z + e) - Height(x, z - e);
+            return new Vector3(-dx, 2f * e, -dz).normalized;
+        }
+
+        /// <summary>Треугольник с нормалями: lerp(гранёная, сглаженная, k).</summary>
+        static void TriBlend(LowPolyMesh lp, int sub, Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc, float k)
+        {
+            var f = Vector3.Cross(b - a, c - a);
+            if (f.sqrMagnitude < 1e-12f) return;
+            f.Normalize();
+            if (Vector3.Dot(f, na + nb + nc) < 0f) f = -f;
+            lp.TriSmooth(sub, a, b, c,
+                Vector3.Lerp(f, na, k).normalized, Vector3.Lerp(f, nb, k).normalized, Vector3.Lerp(f, nc, k).normalized);
+        }
+
         static void TerrainTri(LowPolyMesh lp, Vector3 a, Vector3 b, Vector3 c)
         {
             var center = (a + b + c) / 3f;
@@ -487,7 +524,12 @@ namespace FalseParadise.EditorTools
             else if (n.y > 0.8f && rel < 1.5f) sub = Noise(center.x, center.z, 0.15f, 2100f) > 0.58f ? 1 : 0;
             else if (rel > 11f) sub = 3;
             else sub = 2;
-            lp.Tri(sub, a, b, c, Vector3.up);
+            if (sub <= 1)
+            {
+                lp.TriSmooth(sub, a, b, c, HeightNormal(a.x, a.z), HeightNormal(b.x, b.z), HeightNormal(c.x, c.z));
+                return;
+            }
+            TriBlend(lp, sub, a, b, c, SlopeNormal(a.x, a.z, false), SlopeNormal(b.x, b.z, false), SlopeNormal(c.x, c.z, false), 0.65f);
         }
 
         // ---------------------------------------------------------------- свод пещеры
@@ -497,7 +539,7 @@ namespace FalseParadise.EditorTools
         {
             float d = Sdf(x, z);
             float dome = d < 0f ? 7.5f + 7.5f * Smooth(0f, 18f, -d) : 7.5f - d * 0.7f;
-            dome += (Noise(x, z, 0.15f, 2500f) - 0.5f) * 3f + (Noise(x, z, 0.45f, 2700f) - 0.5f) * 0.9f;
+            dome += (Noise(x, z, 0.15f, 2500f) - 0.5f) * 3f + (Noise(x, z, 0.45f, 2700f) - 0.5f) * 0.5f;
             return FloorH(x, z) + dome;
         }
 
@@ -533,15 +575,16 @@ namespace FalseParadise.EditorTools
                 var p01 = pos[ix, iz + 1];
                 var p11 = pos[ix + 1, iz + 1];
                 int sub = Hash(ix, iz, 6) < 0.3f ? 1 : 0;
+                Vector3 N(Vector3 v) => SlopeNormal(v.x, v.z, true);
                 if (Hash(ix, iz, 7) < 0.5f)
                 {
-                    lp.Tri(sub, p00, p01, p11, Vector3.down);
-                    lp.Tri(sub, p00, p11, p10, Vector3.down);
+                    TriBlend(lp, sub, p00, p01, p11, N(p00), N(p01), N(p11), 0.6f);
+                    TriBlend(lp, sub, p00, p11, p10, N(p00), N(p11), N(p10), 0.6f);
                 }
                 else
                 {
-                    lp.Tri(sub, p00, p01, p10, Vector3.down);
-                    lp.Tri(sub, p10, p01, p11, Vector3.down);
+                    TriBlend(lp, sub, p00, p01, p10, N(p00), N(p01), N(p10), 0.6f);
+                    TriBlend(lp, sub, p10, p01, p11, N(p10), N(p01), N(p11), 0.6f);
                 }
             }
             foreach (var kv in chunks)
@@ -1069,6 +1112,7 @@ namespace FalseParadise.EditorTools
             var ffs = Particles(flames, pFire, 50f, 0.5f, 0.9f, 0.8f, 1.6f, 0.5f, 0.9f,
                 new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 80, ShrinkCurve(), 0.8f);
             ShapeCone(ffs, 10f, 0.55f);
+            Halo(fire, fire.position + Vector3.up * 0.9f, 4f, 5.5f);
             var fireSparks = new GameObject("Embers");
             fireSparks.transform.SetParent(fire, false);
             fireSparks.transform.position = fire.position + Vector3.up * 0.8f;
@@ -1368,15 +1412,15 @@ namespace FalseParadise.EditorTools
             col.height = 2.6f;
 
             var flameTop = pos + Vector3.up * 2.95f;
-            var l = PointLight(t, "Light", flameTop + Vector3.up * 0.25f, TorchColor, 18f, 22f);
+            var l = PointLight(t, "Light", flameTop + Vector3.up * 0.25f, TorchColor, 19f, 28f);
             // Тени только у каждого пятого факела: point-тень = 6 карт, держим бюджет под 60 FPS
             l.shadows = LightShadows.None; // тени раздаются в AssignTorchShadows
             torchLights.Add(l);
             l.shadowBias = 0.05f;
             l.shadowNormalBias = 0.4f;
             var flick = l.gameObject.AddComponent<TorchFlicker>();
-            SetFloat(flick, "baseIntensity", 22f);
-            SetFloat(flick, "flickerAmount", 3f);
+            SetFloat(flick, "baseIntensity", 28f);
+            SetFloat(flick, "flickerAmount", 3.5f);
             moodLights.Add(l);
 
             // Языки пламени
@@ -1384,8 +1428,9 @@ namespace FalseParadise.EditorTools
             fire.transform.SetParent(t, false);
             fire.transform.position = flameTop - Vector3.up * 0.5f;
             var fps = Particles(fire, pFire, 40f, 0.35f, 0.65f, 0.5f, 1.2f, 0.32f, 0.6f,
-                new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 40, ShrinkCurve(), 0.6f);
+                new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 40, ShrinkCurve(), 0.2f);
             ShapeCone(fps, 6f, 0.1f);
+            Halo(t, flameTop - Vector3.up * 0.2f, 1.8f, 2.6f);
 
             // Дым
             var smoke = new GameObject("Smoke");
@@ -1788,7 +1833,7 @@ namespace FalseParadise.EditorTools
         static void BuildAtmosphere(Camera cam)
         {
             // Тени в референсе не чёрные, а холодные сине-серые: сверху холод, снизу тёплый отсвет пола
-            var illusionFog = new Color(0.075f, 0.06f, 0.05f);
+            var illusionFog = new Color(0.05f, 0.052f, 0.06f);
             var illusionAmbient = new Color(0.15f, 0.16f, 0.21f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
@@ -1798,7 +1843,7 @@ namespace FalseParadise.EditorTools
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.022f;
+            RenderSettings.fogDensity = 0.03f;
             RenderSettings.fogColor = illusionFog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
@@ -1829,7 +1874,7 @@ namespace FalseParadise.EditorTools
             so.FindProperty("illusionFog").colorValue = illusionFog;
             so.FindProperty("illusionTorch").colorValue = TorchColor;
             so.FindProperty("truthAmbient").colorValue = new Color(0.24f, 0.22f, 0.2f);
-            so.FindProperty("truthFog").colorValue = new Color(0.12f, 0.09f, 0.06f);
+            so.FindProperty("truthFog").colorValue = new Color(0.1f, 0.09f, 0.08f);
             so.FindProperty("truthTorch").colorValue = new Color(1f, 0.8f, 0.5f);
             var list = so.FindProperty("torches");
             list.arraySize = moodLights.Count;
@@ -1859,18 +1904,27 @@ namespace FalseParadise.EditorTools
             tone.mode.Override(TonemappingMode.ACES);
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.Override(1.1f);
-            bloom.intensity.Override(0.7f);
-            bloom.scatter.Override(0.7f);
+            bloom.threshold.Override(0.95f);
+            bloom.intensity.Override(0.85f);
+            bloom.scatter.Override(0.78f);
 
             var vignette = profile.Add<Vignette>(true);
             vignette.intensity.Override(0.32f);
             vignette.smoothness.Override(0.45f);
 
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.Override(0.5f);
-            color.contrast.Override(12f);
-            color.saturation.Override(-4f);
+            color.postExposure.Override(0.85f);
+            color.contrast.Override(22f);
+            color.saturation.Override(-2f);
+
+            var split = profile.Add<SplitToning>(true);
+            split.shadows.Override(new Color(0.42f, 0.48f, 0.58f));
+            split.highlights.Override(new Color(0.64f, 0.52f, 0.4f));
+            split.balance.Override(-35f);
+
+            var smh = profile.Add<ShadowsMidtonesHighlights>(true);
+            smh.shadows.Override(new Vector4(0.92f, 0.96f, 1.08f, -0.04f));
+            smh.highlights.Override(new Vector4(1.06f, 1f, 0.92f, 0f));
 
             var wb = profile.Add<WhiteBalance>(true);
             wb.temperature.Override(2f);
@@ -2017,6 +2071,26 @@ namespace FalseParadise.EditorTools
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             return ps;
+        }
+
+        /// <summary>Неподвижный мягкий ореол (несколько больших аддитивных частиц, перекрывающих друг друга).</summary>
+        static void Halo(Transform parent, Vector3 pos, float sizeMin, float sizeMax)
+        {
+            var go = new GameObject("Halo");
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
+            var ps = Particles(go, pHalo, 4f, 1.2f, 1.6f, 0f, 0.02f, sizeMin, sizeMax,
+                new Color(1f, 0.8f, 0.55f, 0.32f), new Color(1f, 0.6f, 0.3f, 0.26f), 0f, 8, FlatCurve(), 0f);
+            ShapeSphere(ps, 0.05f);
+        }
+
+        static AnimationCurve FlatCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 1f));
+
+        static void ShapeSphere(ParticleSystem ps, float radius)
+        {
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = radius;
         }
 
         static void ShapeCone(ParticleSystem ps, float angle, float radius)

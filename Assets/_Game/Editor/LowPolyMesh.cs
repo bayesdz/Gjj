@@ -50,6 +50,23 @@ namespace FalseParadise.EditorTools
             subs[sub].Add(i); subs[sub].Add(i + 1); subs[sub].Add(i + 2);
         }
 
+        /// <summary>Треугольник с нормалями в вершинах: гладкое затенение (песчаный пол).</summary>
+        public void TriSmooth(int sub, Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc)
+        {
+            var n = Vector3.Cross(b - a, c - a);
+            if (n.sqrMagnitude < 1e-12f) return;
+            if (Vector3.Dot(n, na + nb + nc) < 0f)
+            {
+                var t = b; b = c; c = t;
+                var tn = nb; nb = nc; nc = tn;
+            }
+            int i = verts.Count;
+            verts.Add(a); verts.Add(b); verts.Add(c);
+            normals.Add(na); normals.Add(nb); normals.Add(nc);
+            colors.Add(Color.white); colors.Add(Color.white); colors.Add(Color.white);
+            subs[sub].Add(i); subs[sub].Add(i + 1); subs[sub].Add(i + 2);
+        }
+
         /// <summary>
         /// Тело вращения: кольца на высотах h с радиусами r (r = 0 — вершина-острие).
         /// Подходит для камней, сталагмитов, кристаллов, грибов, палаток, факелов, тел.
