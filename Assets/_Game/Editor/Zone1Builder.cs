@@ -146,7 +146,7 @@ namespace FalseParadise.EditorTools
             return sh / sw + (Noise(x, z, 0.05f, 500f) - 0.5f) * 1.2f;
         }
 
-        static float Height(float x, float z)
+        internal static float Height(float x, float z)
         {
             float h = FloorH(x, z) + (Noise(x, z, 0.4f, 700f) - 0.5f) * 0.5f;
             float d = Sdf(x, z);
@@ -185,6 +185,7 @@ namespace FalseParadise.EditorTools
         static readonly List<Mesh> generated = new List<Mesh>();
         static readonly List<Light> moodLights = new List<Light>();
         static readonly List<Vector3> torchSpots = new List<Vector3>();
+        static readonly List<Light> torchLights = new List<Light>();
         static System.Random rng;
         static int torchCount;
 
@@ -195,12 +196,12 @@ namespace FalseParadise.EditorTools
         static Material mCharcoal, mOchre, mBlack, mRune;
         static Material mGobSkin, mGobEyes, mGobSkinTrue, mGobEyesTrue, mTunic;
         static Material mShining, mShiningWing;
-        static Material pSmoke, pEmbers, pDust, gVeil;
+        static Material pSmoke, pFire, pEmbers, pDust, gVeil;
 
         [MenuItem("False Paradise/Build Zone 1 (Goblin Lair)")]
         public static void Build()
         {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             EnsureFolder("Assets/_Game/Scenes");
             EnsureFolder(MatDir);
@@ -210,6 +211,7 @@ namespace FalseParadise.EditorTools
             generated.Clear();
             moodLights.Clear();
             torchSpots.Clear();
+            torchLights.Clear();
             torchCount = 0;
             rng = new System.Random(Seed);
 
@@ -270,20 +272,20 @@ namespace FalseParadise.EditorTools
         static void CreateMaterials()
         {
             // Тёплый песчаник: пол светлее, свод темнее (референс: тёплая пещера в свете факелов)
-            mFloor = Lit("Z1_Floor", new Color(0.47f, 0.35f, 0.24f));
-            mFloorAlt = Lit("Z1_FloorGravel", new Color(0.38f, 0.28f, 0.19f));
-            mWall = Lit("Z1_Wall", new Color(0.52f, 0.4f, 0.29f));
-            mWallHigh = Lit("Z1_WallHigh", new Color(0.4f, 0.3f, 0.21f));
-            mCeiling = Lit("Z1_Ceiling", new Color(0.32f, 0.24f, 0.17f));
+            mFloor = Lit("Z1_Floor", new Color(0.66f, 0.53f, 0.39f));
+            mFloorAlt = Lit("Z1_FloorGravel", new Color(0.55f, 0.43f, 0.31f));
+            mWall = Lit("Z1_Wall", new Color(0.72f, 0.58f, 0.43f));
+            mWallHigh = Lit("Z1_WallHigh", new Color(0.6f, 0.48f, 0.36f));
+            mCeiling = Lit("Z1_Ceiling", new Color(0.52f, 0.42f, 0.32f));
             mChasm = Lit("Z1_ChasmRock", new Color(0.32f, 0.13f, 0.08f));
-            mRock = Lit("Z1_Rock", new Color(0.55f, 0.43f, 0.31f));
-            mRockDark = Lit("Z1_RockDark", new Color(0.33f, 0.25f, 0.18f));
+            mRock = Lit("Z1_Rock", new Color(0.76f, 0.62f, 0.47f));
+            mRockDark = Lit("Z1_RockDark", new Color(0.5f, 0.4f, 0.3f));
 
-            mWood = Lit("Z1_Wood", new Color(0.36f, 0.23f, 0.14f));
-            mWoodDark = Lit("Z1_WoodDark", new Color(0.21f, 0.14f, 0.09f));
-            mWoodPale = Lit("Z1_WoodPale", new Color(0.56f, 0.41f, 0.28f));
+            mWood = Lit("Z1_Wood", new Color(0.46f, 0.31f, 0.19f));
+            mWoodDark = Lit("Z1_WoodDark", new Color(0.3f, 0.2f, 0.13f));
+            mWoodPale = Lit("Z1_WoodPale", new Color(0.68f, 0.52f, 0.36f));
             mIron = Lit("Z1_Iron", new Color(0.2f, 0.19f, 0.2f), 0f, 0.45f, 0.6f);
-            mFlame = Lit("Z1_Flame", new Color(1f, 0.55f, 0.15f), 8f);
+            mFlame = Lit("Z1_Flame", new Color(1f, 0.38f, 0.06f), 1.5f);
             mBone = Lit("Z1_Bone", new Color(0.86f, 0.8f, 0.68f));
             mHide = Lit("Z1_HideDark", new Color(0.24f, 0.16f, 0.12f));
             mHideWarm = Lit("Z1_HideWarm", new Color(0.62f, 0.42f, 0.26f));
@@ -302,10 +304,11 @@ namespace FalseParadise.EditorTools
             mGobEyesTrue = Lit("Z1_GoblinEyesTrue", new Color(0.06f, 0.05f, 0.04f));
             mTunic = Lit("Z1_Tunic", new Color(0.52f, 0.36f, 0.22f));
 
-            mShining = Lit("Z1_Shining", new Color(1f, 0.9f, 0.7f), 3.5f);
-            mShiningWing = Lit("Z1_ShiningWing", new Color(1f, 0.82f, 0.5f), 5f);
+            mShining = Lit("Z1_Shining", new Color(1f, 0.78f, 0.45f), 1.6f);
+            mShiningWing = Lit("Z1_ShiningWing", new Color(1f, 0.7f, 0.35f), 2f);
 
-            pSmoke = Soft("Z1_Smoke", new Color(0.2f, 0.17f, 0.15f, 0.55f), 1f, false, 1.2f);
+            pSmoke = Soft("Z1_Smoke", new Color(0.3f, 0.27f, 0.25f, 0.2f), 1f, false, 1.6f);
+            pFire = Soft("Z1_Fire", new Color(1f, 0.45f, 0.12f), 2.2f, true, 1.4f);
             pEmbers = Soft("Z1_Embers", new Color(1f, 0.55f, 0.18f), 4f, true, 2f);
             pDust = Soft("Z1_Dust", new Color(1f, 0.8f, 0.55f), 1.2f, true, 2f);
             gVeil = Glow("Z1_GlowVeil", new Color(0.3f, 1f, 0.9f), 1.6f);
@@ -611,23 +614,29 @@ namespace FalseParadise.EditorTools
                 }
 
                 // Реквизит гоблинов у стен
-                if (d > -2.6f && d < -0.6f && dc > 3f && path > 3.2f && !reserved)
+                if (d > -2.8f && d < -0.5f && dc > 3f && path > 3f && !reserved)
                 {
                     var lp = Chunk(solid, 5, x, z);
                     float t = R01();
-                    if (t < 0.07f) Fence(lp, p, inward);
-                    else if (t < 0.1f) Ladder(lp, p, inward);
-                    else if (t < 0.17f) Barricade(lp, p, inward);
-                    else if (t < 0.22f) Crates(lp, p, inward);
-                    else if (t < 0.26f) Barrels(lp, p);
+                    if (t < 0.1f) Fence(lp, p, inward);
+                    else if (t < 0.15f) Ladder(lp, p, inward);
+                    else if (t < 0.24f) Barricade(lp, p, inward);
+                    else if (t < 0.32f) Palisade(lp, p, inward);
+                    else if (t < 0.37f) Crates(lp, p, inward);
+                    else if (t < 0.41f) Barrels(lp, p);
+                    else if (t < 0.47f) Scaffold(lp, p, inward);
                 }
+
+                // Колья, вбитые в пол, и брошенные доски ближе к центру залов
+                if (d < -3f && dc > 3f && path > 2.6f && !reserved && R01() < 0.05f)
+                    StakeCluster(Chunk(solid, 5, x, z), p);
 
                 // Мелочь на полу
                 if (d < -0.8f && dc > 1.5f)
                 {
-                    if (path > 1.3f && R01() < 0.16f) Rubble(Chunk(detail, 4, x, z), p);
-                    if (R01() < 0.06f) Planks(Chunk(detail, 4, x, z), p);
-                    if (R01() < 0.08f) Bones(Chunk(bones, 1, x, z), p);
+                    if (path > 1.3f && R01() < 0.22f) Rubble(Chunk(detail, 4, x, z), p);
+                    if (R01() < 0.1f) Planks(Chunk(detail, 4, x, z), p);
+                    if (R01() < 0.14f) Bones(Chunk(bones, 1, x, z), p);
                 }
             }
 
@@ -768,6 +777,53 @@ namespace FalseParadise.EditorTools
                     lp.Lathe(s < 0 ? 3 : 2, sm, new[] { -0.4f, len * 0.82f, len }, new[] { 0.07f, 0.065f, 0f }, 5);
                 }
             }
+        }
+
+        /// <summary>Частокол: ряд заострённых брёвен разной высоты, связанных поперечиной.</summary>
+        static void Palisade(LowPolyMesh lp, Vector3 p, Vector3 inward)
+        {
+            float L = R(2f, 4f);
+            var m = Matrix4x4.TRS(p - inward * 0.2f, Quaternion.LookRotation(inward) * Quaternion.Euler(0f, R(-12f, 12f), 0f), Vector3.one);
+            int n = Mathf.Max(3, Mathf.RoundToInt(L / 0.32f));
+            for (int k = 0; k < n; k++)
+            {
+                float x = -L * 0.5f + L * k / (n - 1);
+                float h = R(1.4f, 2.6f);
+                var sm = m * Matrix4x4.TRS(new Vector3(x, -0.3f, R(-0.06f, 0.06f)), Quaternion.Euler(R(-6f, 6f), 0f, R(-7f, 7f)), Vector3.one);
+                lp.Lathe(R01() < 0.5f ? 2 : 3, sm, new[] { 0f, h * 0.85f, h }, new[] { 0.12f, 0.11f, 0f }, 5);
+            }
+            lp.Box(3, m * Matrix4x4.TRS(new Vector3(0f, 0.9f, 0.14f), Quaternion.Euler(0f, 0f, R(-4f, 4f)), Vector3.one), Vector3.zero, new Vector3(L + 0.3f, 0.14f, 0.1f));
+        }
+
+        /// <summary>Деревянные мостки-подмостки у стены: стойки, настил, раскосы.</summary>
+        static void Scaffold(LowPolyMesh lp, Vector3 p, Vector3 inward)
+        {
+            float L = R(2.4f, 3.6f), H = R(2.2f, 3.2f);
+            var m = Matrix4x4.TRS(p - inward * 0.4f, Quaternion.LookRotation(inward) * Quaternion.Euler(0f, R(-10f, 10f), 0f), Vector3.one);
+            for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = 0; sz <= 1; sz++)
+                lp.Box(3, m * Matrix4x4.TRS(new Vector3(sx * L * 0.5f, H * 0.5f - 0.3f, -sz * 1.1f), Quaternion.Euler(R(-3f, 3f), 0f, R(-3f, 3f)), Vector3.one), Vector3.zero, new Vector3(0.16f, H, 0.16f));
+            for (int k = 0; k < 5; k++)
+                lp.Box(k % 2 == 0 ? 2 : 3, m * Matrix4x4.TRS(new Vector3(R(-0.1f, 0.1f), H - 0.25f, -0.15f - k * 0.2f), Quaternion.Euler(0f, R(-3f, 3f), 0f), Vector3.one), Vector3.zero, new Vector3(L + R(0.2f, 0.6f), 0.07f, 0.19f));
+            float ang = Mathf.Atan2(H * 0.7f, L) * Mathf.Rad2Deg;
+            lp.Box(3, m * Matrix4x4.TRS(new Vector3(0f, H * 0.4f, 0.1f), Quaternion.Euler(0f, 0f, ang), Vector3.one), Vector3.zero, new Vector3(Mathf.Sqrt(L * L + H * H * 0.49f), 0.1f, 0.08f));
+            if (R01() < 0.6f) Ladder(lp, p + inward * 0.2f + Quaternion.LookRotation(inward) * new Vector3(L * 0.5f + 0.5f, 0f, 0f), inward);
+        }
+
+        /// <summary>Пучок кольев, вбитых в пол под разными углами (как в референсе слева от тропы).</summary>
+        static void StakeCluster(LowPolyMesh lp, Vector3 p)
+        {
+            int n = rng.Next(4, 9);
+            for (int k = 0; k < n; k++)
+            {
+                var q = p + new Vector3(R(-0.9f, 0.9f), 0f, R(-0.9f, 0.9f));
+                q.y = Height(q.x, q.z) - 0.2f;
+                var dir = new Vector3(R(-0.5f, 0.5f), 1f, R(-0.5f, 0.5f)).normalized;
+                float len = R(0.8f, 1.9f);
+                lp.Lathe(R01() < 0.5f ? 2 : 3, Matrix4x4.TRS(q, Quaternion.FromToRotation(Vector3.up, dir), Vector3.one),
+                    new[] { 0f, len * 0.8f, len }, new[] { 0.075f, 0.065f, 0f }, 5);
+            }
+            if (R01() < 0.5f) Boulder(lp, p + new Vector3(R(-1f, 1f), 0f, R(-1f, 1f)), R(0.5f, 0.9f));
         }
 
         static void Crates(LowPolyMesh lp, Vector3 p, Vector3 inward)
@@ -973,19 +1029,25 @@ namespace FalseParadise.EditorTools
             fc.center = new Vector3(0f, 0.3f, 0f);
             fc.radius = 1.3f;
             fc.height = 0.6f;
-            var fl = PointLight(fire, "FireLight", fire.position + Vector3.up * 1.4f, new Color(1f, 0.45f, 0.15f), 16f, 4.5f);
-            fl.shadows = LightShadows.Soft;
+            var fl = PointLight(fire, "FireLight", fire.position + Vector3.up * 1.6f, TorchColor, 22f, 40f);
+            ShadowLight(fl);
             var flick = fl.gameObject.AddComponent<TorchFlicker>();
-            SetFloat(flick, "baseIntensity", 4.5f);
-            SetFloat(flick, "flickerAmount", 1f);
+            SetFloat(flick, "baseIntensity", 40f);
+            SetFloat(flick, "flickerAmount", 6f);
             moodLights.Add(fl);
             torchSpots.Add(fire.position);
             var fireSmoke = new GameObject("Smoke");
             fireSmoke.transform.SetParent(fire, false);
             fireSmoke.transform.position = fire.position + Vector3.up * 1.4f;
-            var fps = Particles(fireSmoke, pSmoke, 7f, 4f, 6f, 0.7f, 1.2f, 0.6f, 1.2f,
-                new Color(1f, 1f, 1f, 0.8f), new Color(0.8f, 0.75f, 0.7f, 0.6f), -0.02f, 50, GrowCurve(), 0.4f);
+            var fps = Particles(fireSmoke, pSmoke, 9f, 4f, 6f, 0.7f, 1.2f, 1f, 1.8f,
+                new Color(1f, 1f, 1f, 0.9f), new Color(0.85f, 0.8f, 0.75f, 0.7f), -0.015f, 60, GrowCurve(), 0.4f);
             ShapeCone(fps, 10f, 0.4f);
+            var flames = new GameObject("Fire");
+            flames.transform.SetParent(fire, false);
+            flames.transform.position = fire.position + Vector3.up * 0.3f;
+            var ffs = Particles(flames, pFire, 50f, 0.5f, 0.9f, 0.8f, 1.6f, 0.5f, 0.9f,
+                new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 80, ShrinkCurve(), 0.8f);
+            ShapeCone(ffs, 10f, 0.55f);
             var fireSparks = new GameObject("Embers");
             fireSparks.transform.SetParent(fire, false);
             fireSparks.transform.position = fire.position + Vector3.up * 0.8f;
@@ -1217,6 +1279,38 @@ namespace FalseParadise.EditorTools
                     Torch(root, Ground(q));
                 }
             }
+            AssignTorchShadows();
+        }
+
+        /// <summary>
+        /// Point-тень стоит 6 карт в атласе, поэтому тени только у факела, ближайшего к центру зала
+        /// (у лагеря тени даёт костёр, у клетки — Сияющий). Итого 5 факелов + 2 источника на уровень.
+        /// </summary>
+        static void AssignTorchShadows()
+        {
+            foreach (var room in new[] { Entrance, FirstFight, BridgeHall, CageHall, ExitRoom })
+            {
+                Light best = null;
+                float bestD = float.MaxValue;
+                foreach (var l in torchLights)
+                {
+                    float d = Vector2.Distance(new Vector2(l.transform.position.x, l.transform.position.z), room.c);
+                    if (d < bestD) { bestD = d; best = l; }
+                }
+                if (best != null) ShadowLight(best);
+            }
+        }
+
+        static void ShadowLight(Light l)
+        {
+            l.shadows = LightShadows.Soft;
+            l.shadowBias = 0.05f;
+            l.shadowNormalBias = 0.4f;
+            var data = l.GetComponent<UniversalAdditionalLightData>();
+            if (data == null) data = l.gameObject.AddComponent<UniversalAdditionalLightData>();
+            var so = new SerializedObject(data); // свойство только для чтения, пишем сериализованное поле
+            var tier = so.FindProperty("m_AdditionalLightsShadowResolutionTier");
+            if (tier != null) { tier.intValue = UniversalAdditionalLightData.AdditionalLightsShadowResolutionTierMedium; so.ApplyModifiedPropertiesWithoutUndo(); }
         }
 
         static bool NearTorch(Vector2 p, float dist)
@@ -1252,22 +1346,32 @@ namespace FalseParadise.EditorTools
             col.height = 2.6f;
 
             var flameTop = pos + Vector3.up * 2.95f;
-            var l = PointLight(t, "Light", flameTop + Vector3.up * 0.2f, new Color(1f, 0.55f, 0.25f), 13f, 5f);
-            l.shadows = torchCount % 3 == 1 ? LightShadows.Soft : LightShadows.None;
+            var l = PointLight(t, "Light", flameTop + Vector3.up * 0.25f, TorchColor, 18f, 22f);
+            // Тени только у каждого пятого факела: point-тень = 6 карт, держим бюджет под 60 FPS
+            l.shadows = LightShadows.None; // тени раздаются в AssignTorchShadows
+            torchLights.Add(l);
             l.shadowBias = 0.05f;
             l.shadowNormalBias = 0.4f;
             var flick = l.gameObject.AddComponent<TorchFlicker>();
-            SetFloat(flick, "baseIntensity", 5f);
-            SetFloat(flick, "flickerAmount", 0.9f);
+            SetFloat(flick, "baseIntensity", 22f);
+            SetFloat(flick, "flickerAmount", 3f);
             moodLights.Add(l);
+
+            // Языки пламени
+            var fire = new GameObject("Fire");
+            fire.transform.SetParent(t, false);
+            fire.transform.position = flameTop - Vector3.up * 0.45f;
+            var fps = Particles(fire, pFire, 32f, 0.35f, 0.6f, 0.5f, 1.1f, 0.3f, 0.55f,
+                new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 40, ShrinkCurve(), 0.6f);
+            ShapeCone(fps, 6f, 0.1f);
 
             // Дым
             var smoke = new GameObject("Smoke");
             smoke.transform.SetParent(t, false);
             smoke.transform.position = flameTop;
-            var ps = Particles(smoke, pSmoke, 5f, 2.5f, 4f, 0.5f, 0.9f, 0.35f, 0.7f,
-                new Color(1f, 1f, 1f, 0.8f), new Color(0.8f, 0.75f, 0.7f, 0.6f), -0.02f, 30, GrowCurve(), 0.35f);
-            ShapeCone(ps, 8f, 0.08f);
+            var ps = Particles(smoke, pSmoke, 7f, 3f, 4.5f, 0.5f, 0.8f, 0.6f, 1.1f,
+                new Color(1f, 1f, 1f, 0.9f), new Color(0.85f, 0.8f, 0.75f, 0.7f), -0.015f, 40, GrowCurve(), 0.4f);
+            ShapeCone(ps, 8f, 0.1f);
 
             // Искры
             var sparks = new GameObject("Embers");
@@ -1423,8 +1527,16 @@ namespace FalseParadise.EditorTools
             var hover = shining.gameObject.AddComponent<Hover>();
             SetFloat(hover, "amplitude", 0.12f);
             SetFloat(hover, "speed", 1.3f);
-            var glow = PointLight(shining, "Glow", shining.position + Vector3.up * 1.4f, new Color(1f, 0.85f, 0.55f), 13f, 4f);
-            glow.shadows = LightShadows.Soft;
+            var glow = PointLight(shining, "Glow", shining.position + Vector3.up * 1.4f, new Color(1f, 0.78f, 0.45f), 14f, 18f);
+            ShadowLight(glow);
+
+            // Золотые пылинки вокруг клетки
+            var motes = new GameObject("Motes");
+            motes.transform.SetParent(shining, false);
+            motes.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+            var mps = Particles(motes, pDust, 14f, 2.5f, 4f, 0.05f, 0.25f, 0.03f, 0.07f,
+                new Color(1f, 0.85f, 0.5f), new Color(1f, 0.7f, 0.35f), -0.02f, 80, FadeCurve(), 0.3f);
+            ShapeBox(mps, new Vector3(2.4f, 3f, 2.4f));
 
             var cage = root.gameObject.AddComponent<ShiningCage>();
             SetRef(cage, "door", door);
@@ -1547,7 +1659,7 @@ namespace FalseParadise.EditorTools
             SetRef(iv, "truthModel", trueGo);
 
             // Красные глаза светятся в темноте
-            var eyes = PointLight(lieGo.transform, "EyeGlow", go.transform.position + go.transform.forward * 0.5f + Vector3.up * 1.1f, new Color(1f, 0.08f, 0.04f), 2.2f, 1.2f);
+            var eyes = PointLight(lieGo.transform, "EyeGlow", go.transform.position + go.transform.forward * 0.5f + Vector3.up * 1.1f, new Color(1f, 0.08f, 0.04f), 1.6f, 0.5f);
             eyes.shadows = LightShadows.None;
         }
 
@@ -1653,14 +1765,18 @@ namespace FalseParadise.EditorTools
 
         static void BuildAtmosphere(Camera cam)
         {
-            var illusionFog = new Color(0.07f, 0.045f, 0.03f);
-            var illusionAmbient = new Color(0.17f, 0.12f, 0.085f);
+            // Тени в референсе не чёрные, а холодные сине-серые: сверху холод, снизу тёплый отсвет пола
+            var illusionFog = new Color(0.075f, 0.06f, 0.05f);
+            var illusionAmbient = new Color(0.15f, 0.16f, 0.21f);
             RenderSettings.skybox = null;
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = illusionAmbient;
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = illusionAmbient;
+            RenderSettings.ambientEquatorColor = new Color(0.16f, 0.13f, 0.11f);
+            RenderSettings.ambientGroundColor = new Color(0.12f, 0.095f, 0.075f);
+            RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.028f;
+            RenderSettings.fogDensity = 0.022f;
             RenderSettings.fogColor = illusionFog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
@@ -1676,21 +1792,21 @@ namespace FalseParadise.EditorTools
             var fillRoot = new GameObject("BounceLights").transform;
             foreach (var room in Rooms)
             {
-                var f = PointLight(fillRoot, "Bounce", Ground(room.c, Mathf.Min(6f, room.r * 0.35f)), new Color(1f, 0.6f, 0.32f), room.r * 1.5f + 8f, 0.9f);
+                var f = PointLight(fillRoot, "Bounce", Ground(room.c, Mathf.Min(6f, room.r * 0.35f)), new Color(1f, 0.72f, 0.48f), room.r * 1.4f + 8f, room.r * 0.9f);
                 f.shadows = LightShadows.None;
             }
 
             // Бледный свет из расщелины за спиной — оттуда пришли друзья
-            var crack = PointLight(null, "LightFromCrack", Ground(SpawnPos + new Vector2(0f, -8f), 4f), new Color(0.75f, 0.82f, 0.95f), 16f, 2.5f);
-            crack.shadows = LightShadows.Soft;
+            var crack = PointLight(null, "LightFromCrack", Ground(SpawnPos + new Vector2(0f, -8f), 4f), new Color(0.75f, 0.82f, 0.95f), 18f, 10f);
+            crack.shadows = LightShadows.None;
 
             // Настроение: иллюзия — огненно-оранжевая, правда — золотистая и светлее
             var mood = new GameObject("TruthMood").AddComponent<TruthMood>();
             var so = new SerializedObject(mood);
             so.FindProperty("illusionAmbient").colorValue = illusionAmbient;
             so.FindProperty("illusionFog").colorValue = illusionFog;
-            so.FindProperty("illusionTorch").colorValue = new Color(1f, 0.55f, 0.25f);
-            so.FindProperty("truthAmbient").colorValue = new Color(0.26f, 0.21f, 0.15f);
+            so.FindProperty("illusionTorch").colorValue = TorchColor;
+            so.FindProperty("truthAmbient").colorValue = new Color(0.24f, 0.22f, 0.2f);
             so.FindProperty("truthFog").colorValue = new Color(0.12f, 0.09f, 0.06f);
             so.FindProperty("truthTorch").colorValue = new Color(1f, 0.8f, 0.5f);
             var list = so.FindProperty("torches");
@@ -1701,6 +1817,7 @@ namespace FalseParadise.EditorTools
             var volume = new GameObject("Global Volume").AddComponent<Volume>();
             volume.isGlobal = true;
             volume.sharedProfile = PostProfile();
+            DynamicGI.UpdateEnvironment();
         }
 
         static VolumeProfile PostProfile()
@@ -1712,21 +1829,21 @@ namespace FalseParadise.EditorTools
             tone.mode.Override(TonemappingMode.ACES);
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.Override(0.95f);
-            bloom.intensity.Override(0.9f);
-            bloom.scatter.Override(0.65f);
+            bloom.threshold.Override(1.1f);
+            bloom.intensity.Override(0.7f);
+            bloom.scatter.Override(0.7f);
 
             var vignette = profile.Add<Vignette>(true);
             vignette.intensity.Override(0.32f);
             vignette.smoothness.Override(0.45f);
 
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.Override(0.8f);
-            color.contrast.Override(16f);
-            color.saturation.Override(12f);
+            color.postExposure.Override(0.3f);
+            color.contrast.Override(12f);
+            color.saturation.Override(-4f);
 
             var wb = profile.Add<WhiteBalance>(true);
-            wb.temperature.Override(8f);
+            wb.temperature.Override(2f);
 
             foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
             AssetDatabase.SaveAssets();
@@ -1821,7 +1938,11 @@ namespace FalseParadise.EditorTools
         static AnimationCurve FadeCurve() => new AnimationCurve(
             new Keyframe(0f, 0f), new Keyframe(0.2f, 1f), new Keyframe(0.8f, 1f), new Keyframe(1f, 0f));
 
-        static AnimationCurve GrowCurve() => new AnimationCurve(new Keyframe(0f, 0.35f), new Keyframe(1f, 1f));
+        static AnimationCurve GrowCurve() => new AnimationCurve(new Keyframe(0f, 0.3f), new Keyframe(1f, 2.6f));
+
+        static AnimationCurve ShrinkCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.5f, 0.75f), new Keyframe(1f, 0.1f));
+
+        static readonly Color TorchColor = new Color(1f, 0.68f, 0.42f);
 
         static ParticleSystem Particles(GameObject go, Material mat, float rate, float lifeMin, float lifeMax,
             float speedMin, float speedMax, float sizeMin, float sizeMax, Color a, Color b, float gravity,

@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Game/Scenes/Zone1_Lair.unity
+    guid: 45f9192ed07303e4d9eb013e5746fe66
+  - enabled: 1
     path: Assets/_Game/Scenes/Sandbox_Nariman.unity
     guid: ac25448398edfd24596f7adda877076a
   - enabled: 1
