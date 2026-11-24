@@ -92,7 +92,12 @@ namespace FalseParadise
         }
 
         static void OnItemInspected(string itemId) => Add("item:" + itemId, PointsItem);
-        static void OnNpcTalked(string npcId) => Add("npc:" + npcId, PointsNpcTalk);
+        // Разговор с огром-вождём очков не даёт: его выбор — пощада (STORY.md, раздел 6).
+        static void OnNpcTalked(string npcId)
+        {
+            if (npcId == OgreChiefId) return;
+            Add("npc:" + npcId, PointsNpcTalk);
+        }
 
         static void Add(string key, int points)
         {
