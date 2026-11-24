@@ -25,6 +25,9 @@ namespace FalseParadise
 
         static readonly int SwingHash = Animator.StringToHash("Swing");
 
+        /// <summary>Взмах оружием (для анимации руки от первого лица).</summary>
+        public event System.Action Swung;
+
         FirstPersonController controller;
         readonly RaycastHit[] hits = new RaycastHit[16];
         float nextAttackTime;
@@ -52,6 +55,7 @@ namespace FalseParadise
         void Swing()
         {
             AnimatorUtil.SetTrigger(weaponAnimator, SwingHash);
+            Swung?.Invoke();
             Play(swingClip);
 
             var ray = new Ray(cam.transform.position, cam.transform.forward);

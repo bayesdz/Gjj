@@ -17,6 +17,9 @@ namespace FalseParadise.EditorTools
         readonly List<int>[] subs;
         bool useColors;
 
+        /// <summary>Сколько повторов текстуры на метр (box-проекция в координатах меша).</summary>
+        public static float UvScale = 0.3f;
+
         public LowPolyMesh(int submeshCount)
         {
             subs = new List<int>[submeshCount];
@@ -193,6 +196,25 @@ namespace FalseParadise.EditorTools
             return s / pts.Length;
         }
 
+        /// <summary>UV по доминирующей оси грани: каждый треугольник имеет свои вершины, швов нет.</summary>
+        List<Vector2> BoxUVs()
+        {
+            var uvs = new List<Vector2>(verts.Count);
+            for (int i = 0; i < verts.Count; i += 3)
+            {
+                int k = Mathf.Min(3, verts.Count - i);
+                var n = k == 3 ? Vector3.Cross(verts[i + 1] - verts[i], verts[i + 2] - verts[i]) : Vector3.up;
+                float ax = Mathf.Abs(n.x), ay = Mathf.Abs(n.y), az = Mathf.Abs(n.z);
+                for (int j = 0; j < k; j++)
+                {
+                    var v = verts[i + j];
+                    var uv = ax >= ay && ax >= az ? new Vector2(v.z, v.y) : ay >= az ? new Vector2(v.x, v.z) : new Vector2(v.x, v.y);
+                    uvs.Add(uv * UvScale);
+                }
+            }
+            return uvs;
+        }
+
         public Mesh ToMesh(string name)
         {
             var mesh = new Mesh { name = name };
@@ -200,9 +222,11 @@ namespace FalseParadise.EditorTools
             mesh.SetVertices(verts);
             mesh.SetNormals(normals);
             if (useColors) mesh.SetColors(colors);
+            mesh.SetUVs(0, BoxUVs());
             mesh.subMeshCount = subs.Length;
             for (int i = 0; i < subs.Length; i++) mesh.SetTriangles(subs[i], i, false);
             mesh.RecalculateBounds();
+            mesh.RecalculateTangents();
             return mesh;
         }
     }
