@@ -199,7 +199,9 @@ namespace FalseParadise.EditorTools
         static Material mShining, mShiningWing;
         static Material mMushStem, mMushCap, mSkin, mSleeve, mSteel, mPuddle, gShaft;
         static Texture2D rockTex, rockNormal;
-        static Material pSmoke, pFire, pHalo, pEmbers, pDust, gVeil;
+        static Material pSmoke, pFire, pHalo, pEmbers, pDust, gVeil, pHaze;
+        static Material mBlock, mFlag;
+        static readonly List<Vector4> ruinSegs = new List<Vector4>(); // (ax, az, bx, bz) стен зала
 
         [MenuItem("False Paradise/Build Zone 1 (Goblin Lair)")]
         public static void Build()
@@ -217,6 +219,7 @@ namespace FalseParadise.EditorTools
             torchLights.Clear();
             shadowLights.Clear();
             torchCount = 0;
+            ruinSegs.Clear();
             rng = new System.Random(Seed);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
@@ -233,6 +236,9 @@ namespace FalseParadise.EditorTools
 
                 EditorUtility.DisplayProgressBar("Zone 1", "Свод пещеры", 0.22f);
                 BuildCeiling(world);
+
+                EditorUtility.DisplayProgressBar("Zone 1", "Древние залы: кладка и фрески", 0.3f);
+                BuildRuins(world);
 
                 EditorUtility.DisplayProgressBar("Zone 1", "Скалы, сталактиты, реквизит", 0.35f);
                 BuildDecor(world);
@@ -329,8 +335,18 @@ namespace FalseParadise.EditorTools
             // Холодный луч света сквозь трещину в своде
             gShaft = Glow("Z1_Shaft", new Color(0.72f, 0.84f, 1f), 0.32f);
 
-            // Фактура: шум камня с трещинами + нормал-карта, мировые UV (LowPolyMesh.BoxUVs)
-            EnsureRockTextures();
+            // Фактура: процедурные текстуры 1024 px (TextureKit), мировые UV (LowPolyMesh.BoxUVs)
+            TextureKit.BeginBuild();
+            var rock = TextureKit.Rock();
+            rockTex = rock.albedo;
+            rockNormal = rock.normal;
+            // Древний зал: блоки кладки и плиты пола
+            mBlock = Lit("Z1_Block", new Color(0.7f, 0.57f, 0.43f));
+            mFlag = Lit("Z1_HallFloor", new Color(0.6f, 0.49f, 0.37f), 0f, 0.12f);
+            Textured(mBlock, new Vector2(2.2f, 2.2f), 1.4f);
+            TextureKit.Apply(mFlag, TextureKit.Flagstone(), 0.5f, 0.8f);
+            var planks = TextureKit.Planks();
+            pHaze = Soft("Z1_Haze", Color.white, 1f, false, 2.2f);
             Textured(mFloor, new Vector2(1f, 1f), 0.9f);
             Textured(mFloorAlt, new Vector2(1.6f, 1.6f), 1.2f);
             Textured(mWall, new Vector2(0.8f, 0.8f), 1.3f);
@@ -339,9 +355,13 @@ namespace FalseParadise.EditorTools
             Textured(mChasm, new Vector2(1f, 1f), 1f);
             Textured(mRock, new Vector2(1.8f, 1.8f), 1.2f);
             Textured(mRockDark, new Vector2(1.8f, 1.8f), 1.2f);
-            Textured(mWood, new Vector2(4f, 0.6f), 0.6f);
-            Textured(mWoodDark, new Vector2(4f, 0.6f), 0.6f);
-            Textured(mWoodPale, new Vector2(4f, 0.6f), 0.6f);
+            TextureKit.Apply(mWood, planks, 1.6f, 0.8f);
+            TextureKit.Apply(mWoodDark, planks, 1.6f, 0.8f);
+            TextureKit.Apply(mWoodPale, planks, 1.6f, 0.8f);
+            // Металл и лужи отражают окружение (Reflection Probe в залах)
+            RuinKit.Reflective(mIron);
+            RuinKit.Reflective(mSteel);
+            RuinKit.Reflective(mPuddle);
             Textured(mBone, new Vector2(3f, 3f), 0.5f);
             gVeil = Glow("Z1_GlowVeil", new Color(0.3f, 1f, 0.9f), 1.6f);
         }
@@ -356,88 +376,6 @@ namespace FalseParadise.EditorTools
             m.SetFloat("_BumpScale", bump);
             m.EnableKeyword("_NORMALMAP");
             EditorUtility.SetDirty(m);
-        }
-
-        /// <summary>Бесшовные текстуры 256×256: светлота камня (шум + трещины) и нормал-карта из той же высоты.</summary>
-        static void EnsureRockTextures()
-        {
-            string dir = ArtDir + "/Textures";
-            EnsureFolder(dir);
-            string albedoPath = dir + "/Z1_RockNoise.png";
-            string normalPath = dir + "/Z1_RockNormal.png";
-            const int N = 256;
-            var h = new float[N * N];
-            for (int y = 0; y < N; y++)
-            for (int x = 0; x < N; x++)
-            {
-                // Крупные пятна + мелкое зерно (вес высоких октав больше: шершавый камень, не «облака»)
-                float v = 0f, amp = 0.35f, tot = 0f;
-                for (int o = 0; o < 6; o++)
-                {
-                    v += amp * PeriodicNoise(x, y, N, 4 << o, o);
-                    tot += amp;
-                    amp *= 0.8f;
-                }
-                v /= tot;
-                // Редкие тонкие трещины: только там, где хребет совпадает с маской
-                float ridge = 1f - Mathf.Abs(PeriodicNoise(x, y, N, 8, 9) * 2f - 1f);
-                float mask = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 0.75f, PeriodicNoise(x, y, N, 4, 17)));
-                float crack = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.965f, 0.995f, ridge)) * mask;
-                h[y * N + x] = Mathf.Clamp01(v - crack * 0.25f);
-            }
-
-            var albedo = new Texture2D(N, N, TextureFormat.RGB24, false);
-            var normal = new Texture2D(N, N, TextureFormat.RGB24, false);
-            var ap = new Color32[N * N];
-            var np = new Color32[N * N];
-            const float strength = 4f;
-            for (int y = 0; y < N; y++)
-            for (int x = 0; x < N; x++)
-            {
-                float hv = h[y * N + x];
-                byte g = (byte)Mathf.RoundToInt(Mathf.Lerp(0.7f, 1f, Mathf.SmoothStep(0.2f, 0.8f, hv)) * 255f);
-                ap[y * N + x] = new Color32(g, g, g, 255);
-                float dx = h[y * N + (x + 1) % N] - h[y * N + (x + N - 1) % N];
-                float dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
-                var n = new Vector3(-dx * strength, -dy * strength, 1f).normalized;
-                np[y * N + x] = new Color32((byte)((n.x * 0.5f + 0.5f) * 255f), (byte)((n.y * 0.5f + 0.5f) * 255f), (byte)((n.z * 0.5f + 0.5f) * 255f), 255);
-            }
-            albedo.SetPixels32(ap);
-            normal.SetPixels32(np);
-            System.IO.File.WriteAllBytes(albedoPath, albedo.EncodeToPNG());
-            System.IO.File.WriteAllBytes(normalPath, normal.EncodeToPNG());
-            Object.DestroyImmediate(albedo);
-            Object.DestroyImmediate(normal);
-            AssetDatabase.ImportAsset(albedoPath);
-            AssetDatabase.ImportAsset(normalPath);
-
-            var ai = (TextureImporter)AssetImporter.GetAtPath(albedoPath);
-            ai.wrapMode = TextureWrapMode.Repeat;
-            ai.anisoLevel = 4;
-            ai.sRGBTexture = true;
-            ai.SaveAndReimport();
-            var ni = (TextureImporter)AssetImporter.GetAtPath(normalPath);
-            ni.textureType = TextureImporterType.NormalMap;
-            ni.wrapMode = TextureWrapMode.Repeat;
-            ni.anisoLevel = 4;
-            ni.SaveAndReimport();
-
-            rockTex = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
-            rockNormal = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
-        }
-
-        /// <summary>Периодический value-noise: решётка cells×cells, заворачивается на краях текстуры.</summary>
-        static float PeriodicNoise(int px, int py, int size, int cells, int seed)
-        {
-            float fx = px * (float)cells / size, fy = py * (float)cells / size;
-            int x0 = Mathf.FloorToInt(fx), y0 = Mathf.FloorToInt(fy);
-            float tx = fx - x0, ty = fy - y0;
-            tx = tx * tx * (3f - 2f * tx);
-            ty = ty * ty * (3f - 2f * ty);
-            float H(int x, int y) => Hash(((x % cells) + cells) % cells, ((y % cells) + cells) % cells, 500 + seed);
-            float a = Mathf.Lerp(H(x0, y0), H(x0 + 1, y0), tx);
-            float b = Mathf.Lerp(H(x0, y0 + 1), H(x0 + 1, y0 + 1), tx);
-            return Mathf.Lerp(a, b, ty);
         }
 
         static Material Lit(string name, Color c, float emission = 0f, float smooth = 0.06f, float metallic = 0f)
@@ -562,7 +500,7 @@ namespace FalseParadise.EditorTools
             }
 
             // 0 пол, 1 гравий, 2 стена, 3 верх стены, 4 пропасть
-            var mats = new[] { mFloor, mFloorAlt, mWall, mWallHigh, mChasm };
+            var mats = new[] { mFloor, mFloorAlt, mWall, mWallHigh, mChasm, mFlag };
             var chunks = new Dictionary<Vector2Int, LowPolyMesh>();
 
             for (int ix = 0; ix < nx - 1; ix++)
@@ -644,6 +582,7 @@ namespace FalseParadise.EditorTools
             float rel = center.y - floor;
             int sub;
             if (rel < -3f) sub = 4;
+            else if (n.y > 0.8f && rel < 1.5f && InHall(center.x, center.z)) sub = 5;
             else if (n.y > 0.8f && rel < 1.5f) sub = Noise(center.x, center.z, 0.15f, 2100f) > 0.58f ? 1 : 0;
             else if (rel > 11f) sub = 3;
             else sub = 2;
@@ -721,9 +660,27 @@ namespace FalseParadise.EditorTools
         // ---------------------------------------------------------------- декор и реквизит
 
         /// <summary>Места, где не ставим крупный реквизит: старт, лагерь, клетка, предметы, мост, выход.</summary>
+        /// <summary>Пол древних залов (плиты): середина логова и зала с клеткой, с рваным краем.</summary>
+        static bool InHall(float x, float z)
+        {
+            var p = new Vector2(x, z);
+            float edge = (Noise(x, z, 0.2f, 5100f) - 0.5f) * 5f;
+            return Vector2.Distance(p, Warren.c) < Warren.r - 5f + edge || Vector2.Distance(p, CageHall.c) < CageHall.r - 7f + edge;
+        }
+
+        static float SegDist2(Vector2 p, Vector4 s) => SegDist(p, new Vector2(s.x, s.y), new Vector2(s.z, s.w));
+
+        static bool NearRuins(float x, float z, float dist)
+        {
+            var p = new Vector2(x, z);
+            foreach (var s in ruinSegs) if (SegDist2(p, s) < dist) return true;
+            return false;
+        }
+
         static bool Reserved(float x, float z)
         {
             var p = new Vector2(x, z);
+            if (NearRuins(x, z, 2.2f)) return true;
             if (Vector2.Distance(p, SpawnPos) < 5f) return true;
             if (Vector2.Distance(p, FirePos) < 14f) return true;
             if (Vector2.Distance(p, BurrowPos) < 5f) return true;
@@ -776,7 +733,7 @@ namespace FalseParadise.EditorTools
                 var inward = -Gradient(x, z); // от стены в пещеру
 
                 // Валуны у стен
-                if (d > -1.5f && d < 3.5f && dc > 2f && R01() < 0.5f)
+                if (d > -1.5f && d < 3.5f && dc > 2f && !NearRuins(x, z, 1.4f) && R01() < 0.5f)
                     Boulder(Chunk(solid, 5, x, z), p, R(1.2f, 3.4f));
 
                 // Сталагмиты (с маленькими соседями)
@@ -896,6 +853,91 @@ namespace FalseParadise.EditorTools
                 var lie = MeshObject("Illusion", holder.transform, Register(kv.Value.ToMesh($"Z1_Bones_{kv.Key.x}_{kv.Key.y}")), new[] { mBone, mCharcoal }, false);
                 var iv = holder.AddComponent<IllusionVisual>();
                 SetRef(iv, "illusionModel", lie);
+            }
+        }
+
+        // ---------------------------------------------------------------- древние залы
+
+        /// <summary>
+        /// Логово и зал с клеткой — остатки древнего зала, который заняли гоблины (референс: круглый зал
+        /// из блоков с росписями). Вдоль скалы — стены из скошенных блоков с руинным верхом, пилястры,
+        /// на части стен фрески гоблинов; на полу — цепи. Проходы и предметы остаются свободными.
+        /// </summary>
+        static void BuildRuins(Transform world)
+        {
+            var root = new GameObject("AncientHalls").transform;
+            root.SetParent(world, false);
+            var r = new System.Random(808);
+            var stone = new LowPolyMesh(1);
+            var iron = new LowPolyMesh(1);
+            var panel = Register(RuinKit.Panel("Z1_MuralPanel", 1f, 1f));
+            int murals = 0;
+            foreach (var room in new[] { Warren, CageHall })
+            {
+                int count = Mathf.RoundToInt(room.r * Mathf.PI * 2f / 6.5f);
+                var spots = RuinKit.FindWall(room.c, room.r + 14f, count, 1.1f, Sdf, Height, (x, z) =>
+                    PathDist(x, z) < 5.5f || ChasmSdf(x, z) < 4f || Vector2.Distance(new Vector2(x, z), BurrowPos) < 6f
+                    || Vector2.Distance(new Vector2(x, z), DrawingPos) < 4f || Vector2.Distance(new Vector2(x, z), CagePos) < 8f);
+                for (int i = 0; i < spots.Count; i++)
+                {
+                    var a = spots[i];
+                    if (float.IsNaN(a.pos.x)) continue;
+                    float wallH = 4.2f + (float)r.NextDouble() * 1.4f;
+                    RuinKit.Pilaster(stone, 0, a.pos - a.inward * 0.1f, a.inward, wallH + 0.9f, 1.05f, r);
+                    var b = spots[(i + 1) % spots.Count];
+                    if (float.IsNaN(b.pos.x)) continue;
+                    float len = Vector2.Distance(new Vector2(a.pos.x, a.pos.z), new Vector2(b.pos.x, b.pos.z));
+                    if (len > 10f || len < 2f) continue;
+                    var inward = (a.inward + b.inward).normalized;
+                    var a2 = a.pos + (b.pos - a.pos).normalized * 0.55f;
+                    var b2 = b.pos - (b.pos - a.pos).normalized * 0.55f;
+                    RuinKit.Wall(stone, 0, a2 - inward * 0.25f, b2 - inward * 0.25f, inward, wallH, 0.8f, r, true);
+                    ruinSegs.Add(new Vector4(a.pos.x, a.pos.z, b.pos.x, b.pos.z));
+
+                    // Фреска на ровной части стены
+                    if (len > 4.5f && murals < 6 && r.NextDouble() < 0.7)
+                    {
+                        var tex = TextureKit.Mural(TextureKit.MuralTheme.GoblinLife, 11 + murals % 3);
+                        var mat = RuinKit.MuralMaterial(MatDir + "/Z1_Mural_" + (murals % 3) + ".mat", tex, new Color(0.95f, 0.85f, 0.72f));
+                        float w = Mathf.Min(len - 1.6f, 6f), h = Mathf.Min(w * 0.5f, 2.8f);
+                        var mid = (a2 + b2) * 0.5f;
+                        var go = new GameObject("Mural_" + murals);
+                        go.transform.SetParent(root, false);
+                        go.transform.position = new Vector3(mid.x, Mathf.Min(a.pos.y, b.pos.y) + 1.15f, mid.z) + inward * (0.4f - 0.25f + 0.09f);
+                        go.transform.rotation = Quaternion.LookRotation(inward);
+                        go.transform.localScale = new Vector3(w, h, 1f);
+                        go.AddComponent<MeshFilter>().sharedMesh = panel;
+                        var mr = go.AddComponent<MeshRenderer>();
+                        mr.sharedMaterial = mat;
+                        mr.shadowCastingMode = ShadowCastingMode.Off;
+                        murals++;
+                    }
+                    // Цепи, брошенные у стены
+                    if (r.NextDouble() < 0.4)
+                    {
+                        var c = Vector3.Lerp(a.pos, b.pos, 0.3f + (float)r.NextDouble() * 0.4f) + inward * 1.5f;
+                        c.y = Height(c.x, c.z);
+                        ChainPile(iron, c, r);
+                    }
+                }
+            }
+            var go2 = MeshObject("Masonry", root, Register(stone.ToMesh("Z1_Masonry")), new[] { mBlock }, true);
+            GameObjectUtility.SetStaticEditorFlags(go2, StaticEditorFlags.BatchingStatic);
+            if (!iron.IsEmpty) MeshObject("Chains", root, Register(iron.ToMesh("Z1_ChainPiles")), new[] { mIron }, false);
+        }
+
+        /// <summary>Свёрнутая на полу цепь: спираль звеньев (каждое — два скрещённых бруска).</summary>
+        static void ChainPile(LowPolyMesh lp, Vector3 p, System.Random r)
+        {
+            float a = (float)r.NextDouble() * 6.28f;
+            float rad = 0.25f;
+            for (int i = 0; i < 46; i++)
+            {
+                a += 0.32f / Mathf.Max(0.25f, rad);
+                rad += 0.012f;
+                var q = p + new Vector3(Mathf.Cos(a) * rad, 0.04f + (i % 3) * 0.015f, Mathf.Sin(a) * rad);
+                var rot = Quaternion.LookRotation(new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a))) * Quaternion.Euler(0f, 0f, i % 2 == 0 ? 0f : 90f);
+                lp.Box(0, Matrix4x4.TRS(q, rot, Vector3.one), Vector3.zero, new Vector3(0.025f, 0.07f, 0.12f));
             }
         }
 
@@ -1365,11 +1407,11 @@ namespace FalseParadise.EditorTools
             fc.center = new Vector3(0f, 0.3f, 0f);
             fc.radius = 1.3f;
             fc.height = 0.6f;
-            var fl = PointLight(fire, "FireLight", fire.position + Vector3.up * 1.6f, TorchColor, 22f, 40f);
+            var fl = PointLight(fire, "FireLight", fire.position + Vector3.up * 1.8f, TorchColor, 26f, 55f);
             ShadowLight(fl);
             var flick = fl.gameObject.AddComponent<TorchFlicker>();
-            SetFloat(flick, "baseIntensity", 40f);
-            SetFloat(flick, "flickerAmount", 6f);
+            SetFloat(flick, "baseIntensity", 55f);
+            SetFloat(flick, "flickerAmount", 8f);
             moodLights.Add(fl);
             torchSpots.Add(fire.position);
             var fireSmoke = new GameObject("Smoke");
@@ -1381,10 +1423,10 @@ namespace FalseParadise.EditorTools
             var flames = new GameObject("Fire");
             flames.transform.SetParent(fire, false);
             flames.transform.position = fire.position + Vector3.up * 0.3f;
-            var ffs = Particles(flames, pFire, 50f, 0.5f, 0.9f, 0.8f, 1.6f, 0.5f, 0.9f,
+            var ffs = Particles(flames, pFire, 80f, 0.55f, 1f, 1f, 2f, 0.8f, 1.4f,
                 new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 80, ShrinkCurve(), 0.8f);
-            ShapeCone(ffs, 10f, 0.55f);
-            Halo(fire, fire.position + Vector3.up * 0.9f, 4f, 5.5f);
+            ShapeCone(ffs, 10f, 0.7f);
+            Halo(fire, fire.position + Vector3.up * 1.1f, 5f, 7f);
             var fireSparks = new GameObject("Embers");
             fireSparks.transform.SetParent(fire, false);
             fireSparks.transform.position = fire.position + Vector3.up * 0.8f;
@@ -1598,7 +1640,7 @@ namespace FalseParadise.EditorTools
                         if (Sdf(q.x, q.y) < -1.3f) { best = q; found = true; }
                         else break;
                     }
-                    if (!found || ChasmSdf(best.x, best.y) < 3f || NearTorch(best, 6f)) continue;
+                    if (!found || ChasmSdf(best.x, best.y) < 3f || NearTorch(best, 6f) || NearRuins(best.x, best.y, 1.3f)) continue;
                     Torch(root, Ground(best));
                 }
             }
@@ -1611,7 +1653,7 @@ namespace FalseParadise.EditorTools
                 {
                     float a = (i + 0.5f) * Mathf.PI * 2f / count + room.r;
                     var q = room.c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (room.r - 3.5f);
-                    if (Sdf(q.x, q.y) > -1f || ChasmSdf(q.x, q.y) < 3f || NearTorch(q, 7f) || PathDist(q.x, q.y) < 2f) continue;
+                    if (Sdf(q.x, q.y) > -1f || ChasmSdf(q.x, q.y) < 3f || NearTorch(q, 7f) || PathDist(q.x, q.y) < 2f || NearRuins(q.x, q.y, 1.3f)) continue;
                     if (Vector2.Distance(q, CagePos) < 6f || Vector2.Distance(q, ExitArchPos) < 6f) continue;
                     Torch(root, Ground(q));
                 }
@@ -2275,6 +2317,21 @@ namespace FalseParadise.EditorTools
             var shafts = new GameObject("LightShafts").transform;
             LightShaft(shafts, new Vector2(-4f, 9f), 0.8f, 2.2f, 45f, 0.4f, false);
             LightShaft(shafts, new Vector2(16f, 50f), 0.9f, 2.6f, 80f, 0.38f, false);
+            // Как на референсе: столб света сверху в зал с костром, дым поднимается в луч
+            LightShaft(shafts, FirePos + new Vector2(2.5f, 2f), 1.6f, 3.8f, 70f, 0.45f, false);
+
+            // Слоистая дымка в залах: тёплая у огня, темнее в проходах (объёмного тумана в URP нет)
+            var haze = new GameObject("Haze").transform;
+            foreach (var room in Rooms)
+            {
+                bool warm = room.c == Warren.c || room.c == CageHall.c;
+                var col = warm ? new Color(0.62f, 0.44f, 0.3f, 0.065f) : new Color(0.34f, 0.3f, 0.28f, 0.05f);
+                RuinKit.Haze(haze, "Haze", Ground(room.c, 2.6f), new Vector3(room.r * 1.6f, 4f, room.r * 1.6f), pHaze, col,
+                    Mathf.Clamp(Mathf.RoundToInt(room.r * 1.1f), 8, 26), 6f, 11f);
+            }
+            // Отражения для цепей, клетки, луж
+            foreach (var room in new[] { FirstFight, Warren, CageHall })
+                RuinKit.Probe(haze, Ground(room.c, 3f), new Vector3(room.r * 2.2f, 16f, room.r * 2.2f), 1f);
 
             // Бледный свет из расщелины за спиной — оттуда пришли друзья
             var crack = PointLight(null, "LightFromCrack", Ground(SpawnPos + new Vector2(0f, -8f), 4f), new Color(0.75f, 0.82f, 0.95f), 18f, 10f);
@@ -2341,6 +2398,20 @@ namespace FalseParadise.EditorTools
 
             var wb = profile.Add<WhiteBalance>(true);
             wb.temperature.Override(2f);
+
+            // Кино: холодные тени, тёплые света, лёгкое зерно и мягкое размытие дальнего плана
+            var lgg = profile.Add<LiftGammaGain>(true);
+            lgg.lift.Override(new Vector4(0.97f, 0.99f, 1.04f, -0.01f));
+            lgg.gain.Override(new Vector4(1.04f, 1f, 0.95f, 0f));
+            var grain = profile.Add<FilmGrain>(true);
+            grain.type.Override(FilmGrainLookup.Thin1);
+            grain.intensity.Override(0.22f);
+            grain.response.Override(0.85f);
+            var dof = profile.Add<DepthOfField>(true);
+            dof.mode.Override(DepthOfFieldMode.Gaussian);
+            dof.gaussianStart.Override(28f);
+            dof.gaussianEnd.Override(75f);
+            dof.gaussianMaxRadius.Override(0.8f);
 
             foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
             AssetDatabase.SaveAssets();

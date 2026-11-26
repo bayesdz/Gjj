@@ -31,6 +31,8 @@ namespace FalseParadise.EditorTools
             new Shot("04_bridge", -5.5f, 113.5f, 12f, 135f),
             new Shot("05_cage", 18f, 143f, 40f, 156f),
             new Shot("06_exit", 42f, 172f, 58f, 200f),
+            new Shot("07_hall", -6f, 106f, -27f, 93f, 0.8f),
+            new Shot("08_hall_wall", -20f, 96f, -32f, 112f, 1.2f),
         };
 
         [MenuItem("False Paradise/Zone 1 Screenshots")]

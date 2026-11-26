@@ -28,8 +28,6 @@ namespace FalseParadise.EditorTools
         const string MatDir = ArtDir + "/Materials";
         const string MeshPath = ArtDir + "/Gate_Meshes.asset";
         const string PostPath = ArtDir + "/Gate_Post.asset";
-        const string RockTexPath = "Assets/_Game/Art/Zone1/Textures/Z1_RockNoise.png";
-        const string RockNormalPath = "Assets/_Game/Art/Zone1/Textures/Z1_RockNormal.png";
         const int Seed = 4242;
 
         // ---------------------------------------------------------------- планировка
@@ -192,7 +190,9 @@ namespace FalseParadise.EditorTools
         static Material mShadow, mGuardLight, mGuardEyes, mIron;
         static Material mSkin, mSleeve, mWoodDark, mSteel;
         static Material gMoon, gStars, gShaft, gVeil, gFlowers;
-        static Material pFire, pSmoke, pEmbers, pHalo, pDust, pMotes, pShadowSmoke, pGold;
+        static Material pFire, pSmoke, pEmbers, pHalo, pDust, pMotes, pShadowSmoke, pGold, pHaze;
+        static Material mBlock;
+        static readonly List<Vector4> ruinSegs = new List<Vector4>();
 
         [MenuItem("False Paradise/Build Elven Gate")]
         public static void Build()
@@ -207,6 +207,7 @@ namespace FalseParadise.EditorTools
 
             generated.Clear();
             shadowLights.Clear();
+            ruinSegs.Clear();
             rng = new System.Random(Seed);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
@@ -219,6 +220,9 @@ namespace FalseParadise.EditorTools
                 EditorUtility.DisplayProgressBar("Elven Gate", "Рельеф и свод", 0.15f);
                 BuildTerrain(world);
                 BuildCeiling(world);
+
+                EditorUtility.DisplayProgressBar("Elven Gate", "Древние стены и фрески", 0.3f);
+                BuildRuins(world);
 
                 EditorUtility.DisplayProgressBar("Elven Gate", "Скалы, кристаллы, колонны", 0.35f);
                 BuildDecor(world);
@@ -321,30 +325,29 @@ namespace FalseParadise.EditorTools
             pShadowSmoke = Soft("G_ShadowSmoke", new Color(0.01f, 0.01f, 0.02f, 0.5f), 1f, false, 2f);
             pGold = Soft("G_GoldMotes", new Color(1f, 0.78f, 0.4f), 3.5f, true, 2f);
 
-            var rockTex = AssetDatabase.LoadAssetAtPath<Texture2D>(RockTexPath);
-            var rockNormal = AssetDatabase.LoadAssetAtPath<Texture2D>(RockNormalPath);
-            if (rockTex == null || rockNormal == null)
-                Debug.LogWarning("Текстуры камня зоны 1 не найдены — соберите Zone 1 один раз. Врата будут без фактуры.");
-            void Tex(Material m, float tile, float bump)
-            {
-                if (rockTex == null || rockNormal == null) return;
-                m.SetTexture("_BaseMap", rockTex);
-                m.SetTextureScale("_BaseMap", new Vector2(tile, tile));
-                m.mainTexture = rockTex;
-                m.SetTexture("_BumpMap", rockNormal);
-                m.SetFloat("_BumpScale", bump);
-                m.EnableKeyword("_NORMALMAP");
-                EditorUtility.SetDirty(m);
-            }
-            Tex(mFloor, 1f, 1f);
+            TextureKit.BeginBuild();
+            var rock = TextureKit.Rock();
+            var masonry = TextureKit.Masonry();
+            var planks = TextureKit.Planks();
+            void Tex(Material m, float tile, float bump) => TextureKit.Apply(m, rock, tile, bump);
+            mBlock = Lit("G_Block", new Color(0.62f, 0.64f, 0.67f));
+            Tex(mBlock, 2.2f, 1.4f);
+            pHaze = Soft("G_Haze", Color.white, 1f, false, 2.2f);
+            // Пол грота вымощен эльфами: старые плиты; кладка ворот и колонн — блоки
+            TextureKit.Apply(mFloor, TextureKit.Flagstone(), 0.45f, 0.8f);
             Tex(mMoss, 1.6f, 1.2f);
             Tex(mWall, 0.8f, 1.3f);
             Tex(mWallHigh, 0.8f, 1.3f);
             Tex(mCeiling, 0.9f, 1.3f);
             Tex(mRock, 1.8f, 1.2f);
             Tex(mRockDark, 1.8f, 1.2f);
-            Tex(mMarble, 0.7f, 0.35f);
-            Tex(mMarbleDark, 0.9f, 0.6f);
+            TextureKit.Apply(mMarble, masonry, 0.9f, 1.1f);
+            TextureKit.Apply(mMarbleDark, masonry, 0.9f, 1.2f);
+            TextureKit.Apply(mWood, planks, 1.6f, 0.8f);
+            TextureKit.Apply(mWoodPale, planks, 1.6f, 0.8f);
+            RuinKit.Reflective(mSilver);
+            RuinKit.Reflective(mIron);
+            RuinKit.Reflective(mCrystal);
             Tex(mBark, 2.5f, 0.8f);
         }
 
@@ -646,9 +649,17 @@ namespace FalseParadise.EditorTools
 
         // ---------------------------------------------------------------- декор
 
+        static bool NearRuins(float x, float z, float dist)
+        {
+            var p = new Vector2(x, z);
+            foreach (var sg in ruinSegs) if (SegDist(p, new Vector2(sg.x, sg.y), new Vector2(sg.z, sg.w)) < dist) return true;
+            return false;
+        }
+
         static bool Reserved(float x, float z)
         {
             var p = new Vector2(x, z);
+            if (NearRuins(x, z, 2.2f)) return true;
             if (Vector2.Distance(p, SpawnPos) < 4f) return true;
             if (Vector2.Distance(p, CircleC) < CircleR + 3f) return true;
             if (Vector2.Distance(p, Camp.c) < Camp.r + 1f) return true;
@@ -693,7 +704,7 @@ namespace FalseParadise.EditorTools
                 bool reserved = Reserved(x, z);
                 var p = new Vector3(x, Height(x, z), z);
 
-                if (d > -1.5f && d < 3.5f && R01() < 0.5f && !(Mathf.Abs(x - GateX) < 4f && Mathf.Abs(z) < 14f))
+                if (d > -1.5f && d < 3.5f && R01() < 0.5f && !NearRuins(x, z, 1.4f) && !(Mathf.Abs(x - GateX) < 4f && Mathf.Abs(z) < 14f))
                     Boulder(Chunk(solid, 2, x, z), p, R(1.2f, 3.2f));
 
                 if (d > -3.5f && d < 1f && path > 3.5f && !reserved && R01() < 0.12f)
@@ -758,6 +769,63 @@ namespace FalseParadise.EditorTools
             var m = Matrix4x4.TRS(new Vector3(x, top, z), Quaternion.Euler(180f + R(-6f, 6f), R(0f, 360f), R(-6f, 6f)), Vector3.one);
             float t = R01();
             lp.Lathe(t < 0.45f ? 2 : t < 0.8f ? 0 : 1, m, new[] { 0f, len * 0.3f, len * 0.65f, len + 0.6f }, new[] { w, w * 0.68f, w * 0.33f, 0f }, rng.Next(5, 8), rng, 0.18f, false, 0.3f);
+        }
+
+        // ---------------------------------------------------------------- древние стены площади
+
+        /// <summary>
+        /// Площадь окружена остатками эльфийских стен из блоков: пилястры, руинный верх,
+        /// на стенах — фрески истории эльфов (древо, Око, Страж с нимбом, врата).
+        /// </summary>
+        static void BuildRuins(Transform world)
+        {
+            var root = new GameObject("AncientWalls").transform;
+            root.SetParent(world, false);
+            var r = new System.Random(515);
+            var stone = new LowPolyMesh(1);
+            var panel = Register(RuinKit.Panel("G_MuralPanel", 1f, 1f));
+            int murals = 0;
+            int count = Mathf.RoundToInt(Plaza.r * Mathf.PI * 2f / 6.5f);
+            var spots = RuinKit.FindWall(Plaza.c, Plaza.r + 14f, count, 1.1f, Sdf, Height, (x, z) =>
+                PathDist(x, z) < 6.5f || Vector2.Distance(new Vector2(x, z), Camp.c) < Camp.r + 2.5f
+                || Mathf.Abs(x - GateX) < 10f && Mathf.Abs(z) < 16f);
+            for (int i = 0; i < spots.Count; i++)
+            {
+                var a = spots[i];
+                if (float.IsNaN(a.pos.x)) continue;
+                float wallH = 4.6f + (float)r.NextDouble() * 1.6f;
+                RuinKit.Pilaster(stone, 0, a.pos - a.inward * 0.1f, a.inward, wallH + 1.2f, 1.1f, r);
+                // Фонарь у каждой второй пилястры: стены и фрески читаются в темноте
+                if (i % 2 == 0) Lantern(root, a.pos + a.inward * 1.3f);
+                var b = spots[(i + 1) % spots.Count];
+                if (float.IsNaN(b.pos.x)) continue;
+                float len = Vector2.Distance(new Vector2(a.pos.x, a.pos.z), new Vector2(b.pos.x, b.pos.z));
+                if (len > 10f || len < 2f) continue;
+                var inward = (a.inward + b.inward).normalized;
+                var a2 = a.pos + (b.pos - a.pos).normalized * 0.6f;
+                var b2 = b.pos - (b.pos - a.pos).normalized * 0.6f;
+                RuinKit.Wall(stone, 0, a2 - inward * 0.25f, b2 - inward * 0.25f, inward, wallH, 0.8f, r, true);
+                ruinSegs.Add(new Vector4(a.pos.x, a.pos.z, b.pos.x, b.pos.z));
+                if (len > 4.5f && murals < 5 && r.NextDouble() < 0.75)
+                {
+                    var tex = TextureKit.Mural(TextureKit.MuralTheme.ElvenHistory, 21 + murals % 2);
+                    var mat = RuinKit.MuralMaterial(MatDir + "/G_Mural_" + (murals % 2) + ".mat", tex, new Color(0.86f, 0.88f, 0.92f));
+                    float w = Mathf.Min(len - 1.6f, 6f), h = Mathf.Min(w * 0.5f, 2.8f);
+                    var mid = (a2 + b2) * 0.5f;
+                    var go = new GameObject("Mural_" + murals);
+                    go.transform.SetParent(root, false);
+                    go.transform.position = new Vector3(mid.x, Mathf.Min(a.pos.y, b.pos.y) + 1.15f, mid.z) + inward * (0.4f - 0.25f + 0.09f);
+                    go.transform.rotation = Quaternion.LookRotation(inward);
+                    go.transform.localScale = new Vector3(w, h, 1f);
+                    go.AddComponent<MeshFilter>().sharedMesh = panel;
+                    var mr = go.AddComponent<MeshRenderer>();
+                    mr.sharedMaterial = mat;
+                    mr.shadowCastingMode = ShadowCastingMode.Off;
+                    murals++;
+                }
+            }
+            var sgo = Z.MeshObject("Masonry", root, Register(stone.ToMesh("G_Masonry")), new[] { mBlock }, true);
+            GameObjectUtility.SetStaticEditorFlags(sgo, StaticEditorFlags.BatchingStatic);
         }
 
         /// <summary>Пучок шестигранных кристаллов, наклонённых от стены.</summary>
@@ -1655,8 +1723,8 @@ namespace FalseParadise.EditorTools
             var fog = new Color(0.03f, 0.05f, 0.07f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.12f, 0.16f, 0.24f);
-            RenderSettings.ambientEquatorColor = new Color(0.08f, 0.1f, 0.13f);
+            RenderSettings.ambientSkyColor = new Color(0.16f, 0.19f, 0.26f);
+            RenderSettings.ambientEquatorColor = new Color(0.11f, 0.12f, 0.15f);
             RenderSettings.ambientGroundColor = new Color(0.06f, 0.07f, 0.075f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
@@ -1676,7 +1744,7 @@ namespace FalseParadise.EditorTools
             moon.type = LightType.Directional;
             moon.transform.rotation = MoonRot;
             moon.color = new Color(0.66f, 0.78f, 1f);
-            moon.intensity = 2.6f;
+            moon.intensity = 2.1f;
             moon.shadows = LightShadows.Soft;
             moon.shadowStrength = 1f;
             moon.shadowBias = 0.06f;
@@ -1687,7 +1755,7 @@ namespace FalseParadise.EditorTools
             var fill = new GameObject("BounceLights").transform;
             var pool = Ground(CircleC, 1.2f);
             Z.PointLight(fill, "PoolBounce", pool, new Color(0.62f, 0.74f, 1f), 16f, 7f).shadows = LightShadows.None;
-            Z.PointLight(fill, "PlazaFill", Ground(Plaza.c, 9f), new Color(0.42f, 0.52f, 0.78f), 36f, 20f).shadows = LightShadows.None;
+            Z.PointLight(fill, "PlazaFill", Ground(Plaza.c, 9f), new Color(0.56f, 0.62f, 0.76f), 38f, 34f).shadows = LightShadows.None;
             Z.PointLight(fill, "TunnelFill", Ground(new Vector2(-30f, 0f), 3f), new Color(0.5f, 0.58f, 0.8f), 20f, 8f).shadows = LightShadows.None;
 
             // Лунный луч: скрещённые плоскости вдоль направления света + пыль
@@ -1709,6 +1777,15 @@ namespace FalseParadise.EditorTools
             var ps = Z.Particles(dust, pDust, 26f, 5f, 8f, 0.02f, 0.08f, 0.02f, 0.05f,
                 new Color(0.85f, 0.92f, 1f, 0.85f), new Color(0.9f, 0.97f, 1f, 0.6f), -0.002f, 260, Z.FadeCurve(), 0.15f);
             Z.ShapeBox(ps, new Vector3(HoleR * 1.6f, len * 0.85f, HoleR * 1.6f));
+
+            // Слоистая дымка: холодная на площади, бирюзовая в лагере, светящаяся в лунном луче
+            var haze = new GameObject("Haze").transform;
+            RuinKit.Haze(haze, "PlazaHaze", Ground(Plaza.c, 2.8f), new Vector3(34f, 4.5f, 34f), pHaze, new Color(0.32f, 0.37f, 0.44f, 0.05f), 26, 7f, 12f);
+            RuinKit.Haze(haze, "CampHaze", Ground(Camp.c, 2.2f), new Vector3(14f, 3.5f, 14f), pHaze, new Color(0.26f, 0.44f, 0.44f, 0.05f), 10, 5f, 9f);
+            RuinKit.Haze(haze, "TunnelHaze", Ground(new Vector2(-32f, 0f), 2f), new Vector3(20f, 3f, 6f), pHaze, new Color(0.22f, 0.26f, 0.32f, 0.05f), 8, 4f, 7f);
+            RuinKit.Haze(haze, "MoonHaze", Ground(CircleC, 3.5f), new Vector3(11f, 6f, 11f), pDust, new Color(0.55f, 0.66f, 0.85f, 0.035f), 14, 6f, 10f);
+            RuinKit.Probe(haze, Ground(Plaza.c, 4f), new Vector3(44f, 20f, 44f), 1f);
+            RuinKit.Probe(haze, Ground(new Vector2(GateX - 4f, 0f), 4f), new Vector3(16f, 16f, 20f), 1f);
 
             // В игре тени только у ближайших точечных источников
             var budget = new GameObject("ShadowBudget").AddComponent<ShadowBudget>();
@@ -1750,6 +1827,18 @@ namespace FalseParadise.EditorTools
             smh.highlights.Override(new Vector4(0.98f, 1f, 1.04f, 0f));
             var wb = profile.Add<WhiteBalance>(true);
             wb.temperature.Override(-6f);
+            var lgg = profile.Add<LiftGammaGain>(true);
+            lgg.lift.Override(new Vector4(0.96f, 0.99f, 1.05f, -0.01f));
+            lgg.gain.Override(new Vector4(1.01f, 1f, 0.98f, 0f));
+            var grain = profile.Add<FilmGrain>(true);
+            grain.type.Override(FilmGrainLookup.Thin1);
+            grain.intensity.Override(0.22f);
+            grain.response.Override(0.85f);
+            var dof = profile.Add<DepthOfField>(true);
+            dof.mode.Override(DepthOfFieldMode.Gaussian);
+            dof.gaussianStart.Override(30f);
+            dof.gaussianEnd.Override(80f);
+            dof.gaussianMaxRadius.Override(0.8f);
             foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
             AssetDatabase.SaveAssets();
             return profile;

@@ -18,6 +18,8 @@ namespace FalseParadise.EditorTools
             new Shot("04_guardian", -7f, -4f, 4f, -1f, 2.2f),
             new Shot("05_gate", 6f, 1f, 28f, 0f, 4f),
             new Shot("06_oculus", -1f, -6f, 2f, 11f, 13f),
+            new Shot("07_walls_south", 2f, -2f, -10f, -17f, 1.5f),
+            new Shot("08_walls_north", -4f, -4f, 10f, 17f, 1.5f),
         };
 
         [MenuItem("False Paradise/Elven Gate Screenshots")]
