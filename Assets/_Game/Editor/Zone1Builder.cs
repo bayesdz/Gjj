@@ -2010,7 +2010,7 @@ namespace FalseParadise.EditorTools
         static readonly float[] Cols = { -1f, -0.5f, 0f, 0.5f, 1f };
         static readonly float[] ColA = { 0f, 0.45f, 0.75f, 0.45f, 0f };
 
-        static Mesh ShaftMesh(string name, float topR, float botR, float height, int planes, float alpha)
+        internal static Mesh ShaftMesh(string name, float topR, float botR, float height, int planes, float alpha)
         {
             var v = new List<Vector3>();
             var c = new List<Color>();
@@ -2049,7 +2049,7 @@ namespace FalseParadise.EditorTools
             return mesh;
         }
 
-        static Mesh GlowQuad(string name, float w, float h, Color bottom, Color top)
+        internal static Mesh GlowQuad(string name, float w, float h, Color bottom, Color top)
         {
             var mesh = new Mesh { name = name };
             mesh.SetVertices(new List<Vector3> { new Vector3(-w / 2f, 0f, 0f), new Vector3(w / 2f, 0f, 0f), new Vector3(w / 2f, h, 0f), new Vector3(-w / 2f, h, 0f) });
@@ -2221,7 +2221,7 @@ namespace FalseParadise.EditorTools
         }
 
         /// <summary>Предплечье в рукаве, кулак и кинжал; вперёд по +z, около 0.5 м длиной.</summary>
-        static Mesh HandMesh()
+        internal static Mesh HandMesh()
         {
             var lp = new LowPolyMesh(4); // 0 кожа, 1 рукав, 2 рукоять, 3 сталь
             var arm = Matrix4x4.TRS(new Vector3(0f, -0.04f, -0.32f), Quaternion.Euler(90f, 0f, 0f), Vector3.one);
@@ -2392,7 +2392,7 @@ namespace FalseParadise.EditorTools
             AssetDatabase.SaveAssets();
         }
 
-        static GameObject MeshObject(string name, Transform parent, Mesh mesh, Material[] mats, bool collider)
+        internal static GameObject MeshObject(string name, Transform parent, Mesh mesh, Material[] mats, bool collider)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -2420,7 +2420,7 @@ namespace FalseParadise.EditorTools
             return go;
         }
 
-        static Light PointLight(Transform parent, string name, Vector3 worldPos, Color color, float range, float intensity)
+        internal static Light PointLight(Transform parent, string name, Vector3 worldPos, Color color, float range, float intensity)
         {
             var l = new GameObject(name).AddComponent<Light>();
             if (parent != null) l.transform.SetParent(parent, true);
@@ -2432,16 +2432,16 @@ namespace FalseParadise.EditorTools
             return l;
         }
 
-        static AnimationCurve FadeCurve() => new AnimationCurve(
+        internal static AnimationCurve FadeCurve() => new AnimationCurve(
             new Keyframe(0f, 0f), new Keyframe(0.2f, 1f), new Keyframe(0.8f, 1f), new Keyframe(1f, 0f));
 
-        static AnimationCurve GrowCurve() => new AnimationCurve(new Keyframe(0f, 0.3f), new Keyframe(1f, 2.6f));
+        internal static AnimationCurve GrowCurve() => new AnimationCurve(new Keyframe(0f, 0.3f), new Keyframe(1f, 2.6f));
 
-        static AnimationCurve ShrinkCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.5f, 0.75f), new Keyframe(1f, 0.1f));
+        internal static AnimationCurve ShrinkCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.5f, 0.75f), new Keyframe(1f, 0.1f));
 
         static readonly Color TorchColor = new Color(1f, 0.68f, 0.42f);
 
-        static ParticleSystem Particles(GameObject go, Material mat, float rate, float lifeMin, float lifeMax,
+        internal static ParticleSystem Particles(GameObject go, Material mat, float rate, float lifeMin, float lifeMax,
             float speedMin, float speedMax, float sizeMin, float sizeMax, Color a, Color b, float gravity,
             int maxParticles, AnimationCurve sizeCurve, float noiseStrength)
         {
@@ -2500,16 +2500,16 @@ namespace FalseParadise.EditorTools
             ShapeSphere(ps, 0.05f);
         }
 
-        static AnimationCurve FlatCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 1f));
+        internal static AnimationCurve FlatCurve() => new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 1f));
 
-        static void ShapeSphere(ParticleSystem ps, float radius)
+        internal static void ShapeSphere(ParticleSystem ps, float radius)
         {
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = radius;
         }
 
-        static void ShapeCone(ParticleSystem ps, float angle, float radius)
+        internal static void ShapeCone(ParticleSystem ps, float angle, float radius)
         {
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Cone;
@@ -2518,7 +2518,7 @@ namespace FalseParadise.EditorTools
             shape.rotation = new Vector3(-90f, 0f, 0f);
         }
 
-        static void ShapeBox(ParticleSystem ps, Vector3 size)
+        internal static void ShapeBox(ParticleSystem ps, Vector3 size)
         {
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Box;

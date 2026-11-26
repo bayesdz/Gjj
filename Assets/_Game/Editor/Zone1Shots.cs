@@ -9,13 +9,14 @@ namespace FalseParadise.EditorTools
     /// на высоте глаз 1.7 м в PNG 1920×1080 → &lt;проект&gt;/Screenshots/.
     /// Запуск: Unity.exe -batchmode -projectPath C:\Gjj -executeMethod FalseParadise.EditorTools.Zone1Shots.Run -logFile ... -quit
     /// Также доступно из меню False Paradise → Zone 1 Screenshots.
+    /// Capture() общий для всех зон (см. GateShots).
     /// </summary>
     public static class Zone1Shots
     {
         const int Width = 1920, Height = 1080;
         const float Eye = 1.7f;
 
-        struct Shot
+        internal struct Shot
         {
             public string name; public Vector2 from, to; public float lookY;
             public Shot(string n, float fx, float fz, float tx, float tz, float lookY = 0f)
@@ -33,7 +34,10 @@ namespace FalseParadise.EditorTools
         };
 
         [MenuItem("False Paradise/Zone 1 Screenshots")]
-        public static void Run()
+        public static void Run() => RunFor(Zone1Builder.Build, Shots, Zone1Builder.Height, "");
+
+        /// <summary>Собрать сцену и снять кадры; prefix добавляется к именам файлов.</summary>
+        internal static void RunFor(System.Action build, Shot[] shots, System.Func<float, float, float> height, string prefix)
         {
             bool async = EditorSettings.asyncShaderCompilation;
             try
@@ -41,8 +45,8 @@ namespace FalseParadise.EditorTools
                 int pc = System.Array.IndexOf(QualitySettings.names, "PC");
                 if (pc >= 0) QualitySettings.SetQualityLevel(pc, true);
                 EditorSettings.asyncShaderCompilation = false; // иначе вместо шейдеров голубые заглушки
-                Zone1Builder.Build();
-                Capture();
+                build();
+                Capture(shots, height, prefix);
             }
             catch (System.Exception e)
             {
@@ -55,7 +59,7 @@ namespace FalseParadise.EditorTools
             }
         }
 
-        static void Capture()
+        static void Capture(Shot[] shots, System.Func<float, float, float> height, string prefix)
         {
             string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Screenshots"));
             Directory.CreateDirectory(dir);
@@ -73,10 +77,10 @@ namespace FalseParadise.EditorTools
             var prevTarget = cam.targetTexture;
             cam.targetTexture = rt;
 
-            foreach (var s in Shots)
+            foreach (var s in shots)
             {
-                var pos = new Vector3(s.from.x, Zone1Builder.Height(s.from.x, s.from.y) + Eye, s.from.y);
-                var target = new Vector3(s.to.x, Zone1Builder.Height(s.to.x, s.to.y) + Eye + s.lookY, s.to.y);
+                var pos = new Vector3(s.from.x, height(s.from.x, s.from.y) + Eye, s.from.y);
+                var target = new Vector3(s.to.x, height(s.to.x, s.to.y) + Eye + s.lookY, s.to.y);
                 cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(target - pos));
                 if (budget != null) budget.ApplyFor(pos); // тени как в игре
 
@@ -90,15 +94,15 @@ namespace FalseParadise.EditorTools
                 tex.Apply();
                 RenderTexture.active = prev;
 
-                string file = Path.Combine(dir, s.name + ".png");
+                string file = Path.Combine(dir, prefix + s.name + ".png");
                 File.WriteAllBytes(file, tex.EncodeToPNG());
-                Debug.Log($"[Zone1Shots] {file}  pos={pos}");
+                Debug.Log($"[Shots] {file}  pos={pos}");
             }
 
             cam.targetTexture = prevTarget;
             Object.DestroyImmediate(rt);
             Object.DestroyImmediate(tex);
-            Debug.Log($"[Zone1Shots] Готово: {Shots.Length} кадров в {dir}");
+            Debug.Log($"[Shots] Готово: {shots.Length} кадров в {dir}");
         }
     }
 }
