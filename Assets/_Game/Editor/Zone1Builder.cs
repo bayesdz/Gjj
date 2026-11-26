@@ -197,7 +197,7 @@ namespace FalseParadise.EditorTools
         static Material mCharcoal, mOchre, mBlack, mRune;
         static Material mGobSkin, mGobEyes, mGobSkinTrue, mGobEyesTrue, mTunic;
         static Material mShining, mShiningWing;
-        static Material mMushStem, mMushCap, mSkin, mSleeve, mSteel;
+        static Material mMushStem, mMushCap, mSkin, mSleeve, mSteel, mPuddle, gShaft;
         static Texture2D rockTex, rockNormal;
         static Material pSmoke, pFire, pHalo, pEmbers, pDust, gVeil;
 
@@ -290,7 +290,7 @@ namespace FalseParadise.EditorTools
             mWoodPale = Lit("Z1_WoodPale", new Color(0.68f, 0.52f, 0.36f));
             mIron = Lit("Z1_Iron", new Color(0.2f, 0.19f, 0.2f), 0f, 0.45f, 0.6f);
             mFlame = Emissive("Z1_Flame", new Color(1f, 0.5f, 0.12f), 1.7f);
-            mBone = Lit("Z1_Bone", new Color(0.86f, 0.8f, 0.68f));
+            mBone = Lit("Z1_Bone", new Color(0.74f, 0.68f, 0.57f));
             mHide = Lit("Z1_HideDark", new Color(0.24f, 0.16f, 0.12f));
             mHideWarm = Lit("Z1_HideWarm", new Color(0.62f, 0.42f, 0.26f));
             mClothRed = Lit("Z1_ClothRed", new Color(0.72f, 0.28f, 0.22f));
@@ -323,7 +323,11 @@ namespace FalseParadise.EditorTools
             // Рука героя от первого лица
             mSkin = Lit("Z1_HeroSkin", new Color(0.78f, 0.58f, 0.46f));
             mSleeve = Lit("Z1_HeroSleeve", new Color(0.3f, 0.26f, 0.32f));
-            mSteel = Lit("Z1_Steel", new Color(0.62f, 0.64f, 0.68f), 0f, 0.65f, 0.85f);
+            mSteel = Lit("Z1_Steel", new Color(0.42f, 0.44f, 0.48f), 0f, 0.45f, 0.7f);
+            // Лужи: тёмные и очень гладкие — в них бликуют факелы
+            mPuddle = Lit("Z1_Puddle", new Color(0.1f, 0.085f, 0.075f), 0f, 0.94f, 0f);
+            // Холодный луч света сквозь трещину в своде
+            gShaft = Glow("Z1_Shaft", new Color(0.72f, 0.84f, 1f), 0.32f);
 
             // Фактура: шум камня с трещинами + нормал-карта, мировые UV (LowPolyMesh.BoxUVs)
             EnsureRockTextures();
@@ -338,6 +342,7 @@ namespace FalseParadise.EditorTools
             Textured(mWood, new Vector2(4f, 0.6f), 0.6f);
             Textured(mWoodDark, new Vector2(4f, 0.6f), 0.6f);
             Textured(mWoodPale, new Vector2(4f, 0.6f), 0.6f);
+            Textured(mBone, new Vector2(3f, 3f), 0.5f);
             gVeil = Glow("Z1_GlowVeil", new Color(0.3f, 1f, 0.9f), 1.6f);
         }
 
@@ -747,6 +752,7 @@ namespace FalseParadise.EditorTools
             var detail = new Dictionary<Vector2Int, LowPolyMesh>();
             var hang = new Dictionary<Vector2Int, LowPolyMesh>();
             var bones = new Dictionary<Vector2Int, LowPolyMesh>();
+            var wet = new Dictionary<Vector2Int, LowPolyMesh>();
 
             LowPolyMesh Chunk(Dictionary<Vector2Int, LowPolyMesh> dict, int subs, float x, float z)
             {
@@ -828,7 +834,9 @@ namespace FalseParadise.EditorTools
                 {
                     if (path > 1.3f && R01() < 0.22f) Rubble(Chunk(detail, 4, x, z), p);
                     if (R01() < 0.1f) Planks(Chunk(detail, 4, x, z), p);
-                    if (R01() < 0.14f) Bones(Chunk(bones, 1, x, z), p);
+                    if (R01() < 0.14f) Bones(Chunk(bones, 2, x, z), p);
+                    if (d < -3f && dc > 3f && !reserved && Noise(x, z, 0.09f, 4100f) > 0.64f && R01() < 0.45f)
+                        Puddle(Chunk(wet, 1, x, z), p);
                 }
             }
 
@@ -856,6 +864,12 @@ namespace FalseParadise.EditorTools
                 }
             }
 
+            foreach (var kv in wet)
+            {
+                var go = MeshObject($"Puddles_{kv.Key.x}_{kv.Key.y}", root, Register(kv.Value.ToMesh($"Z1_Wet_{kv.Key.x}_{kv.Key.y}")), new[] { mPuddle }, false);
+                go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            }
+
             foreach (var kv in flora)
                 MeshObject($"Mushrooms_{kv.Key.x}_{kv.Key.y}", root, Register(kv.Value.ToMesh($"Z1_Flora_{kv.Key.x}_{kv.Key.y}")), floraMats, false);
 
@@ -879,7 +893,7 @@ namespace FalseParadise.EditorTools
             {
                 var holder = new GameObject($"Bones_{kv.Key.x}_{kv.Key.y}");
                 holder.transform.SetParent(root, false);
-                var lie = MeshObject("Illusion", holder.transform, Register(kv.Value.ToMesh($"Z1_Bones_{kv.Key.x}_{kv.Key.y}")), new[] { mBone }, false);
+                var lie = MeshObject("Illusion", holder.transform, Register(kv.Value.ToMesh($"Z1_Bones_{kv.Key.x}_{kv.Key.y}")), new[] { mBone, mCharcoal }, false);
                 var iv = holder.AddComponent<IllusionVisual>();
                 SetRef(iv, "illusionModel", lie);
             }
@@ -1024,10 +1038,10 @@ namespace FalseParadise.EditorTools
         }
 
         /// <summary>Цепь со свода: звенья — рамки из четырёх брусков, через одно повёрнуты на 90°.</summary>
-        static void Chain(LowPolyMesh lp, float x, float z)
+        static void Chain(LowPolyMesh lp, float x, float z, float bottomY = float.NaN)
         {
             float top = CeilingH(x, z) + 0.3f;
-            float bottom = Height(x, z) + R(2.6f, 4.2f);
+            float bottom = float.IsNaN(bottomY) ? Height(x, z) + R(2.6f, 4.2f) : bottomY;
             const float pitch = 0.17f;
             int links = Mathf.Clamp(Mathf.RoundToInt((top - bottom) / pitch), 4, 80);
             float yaw = R(0f, 180f);
@@ -1154,20 +1168,73 @@ namespace FalseParadise.EditorTools
             }
         }
 
+        /// <summary>Россыпь костей: трубчатые кости с суставами, иногда череп с глазницами или грудная клетка.</summary>
         static void Bones(LowPolyMesh lp, Vector3 p)
         {
             int n = rng.Next(1, 4);
             for (int k = 0; k < n; k++)
             {
                 var q = p + new Vector3(R(-0.8f, 0.8f), 0f, R(-0.8f, 0.8f));
-                q.y = Height(q.x, q.z) + 0.04f;
-                float len = R(0.35f, 0.8f);
-                var m = Matrix4x4.TRS(q, Quaternion.Euler(R(-6f, 6f), R(0f, 360f), R(-6f, 6f)), Vector3.one);
-                lp.Box(0, m, Vector3.zero, new Vector3(0.06f, 0.06f, len));
-                lp.Box(0, m, new Vector3(0f, 0f, len * 0.5f), new Vector3(0.13f, 0.09f, 0.08f));
-                lp.Box(0, m, new Vector3(0f, 0f, -len * 0.5f), new Vector3(0.13f, 0.09f, 0.08f));
+                q.y = Height(q.x, q.z) + 0.035f;
+                LongBone(lp, Matrix4x4.TRS(q, Quaternion.Euler(R(-6f, 6f), R(0f, 360f), R(-6f, 6f)), Vector3.one), R(0.3f, 0.75f));
             }
-            if (R01() < 0.3f) Skull(lp, 0, new Vector3(p.x, Height(p.x, p.z) + 0.12f, p.z), R(0.16f, 0.24f));
+            if (R01() < 0.35f) SkullDetailed(lp, new Vector3(p.x + R(-0.5f, 0.5f), 0f, p.z + R(-0.5f, 0.5f)), R(0.15f, 0.21f));
+            if (R01() < 0.12f) Ribcage(lp, new Vector3(p.x + R(-0.6f, 0.6f), 0f, p.z + R(-0.6f, 0.6f)), R(0.8f, 1.1f));
+        }
+
+        /// <summary>Трубчатая кость вдоль локальной z: тонкое тело, утолщения-суставы на концах.</summary>
+        static void LongBone(LowPolyMesh lp, Matrix4x4 m, float len)
+        {
+            float r = Mathf.Max(0.022f, len * 0.055f);
+            var axis = m * Matrix4x4.Rotate(Quaternion.Euler(90f, 0f, 0f));
+            float h = len * 0.5f;
+            lp.Lathe(0, axis, new[] { -h, -h * 0.9f, -h * 0.72f, 0f, h * 0.72f, h * 0.9f, h },
+                new[] { r * 1.3f, r * 2f, r * 1.1f, r * 0.85f, r * 1.1f, r * 2f, r * 1.3f }, 6, null, 0f, true);
+            // Вторая головка сустава рядом — характерная «двойная» форма
+            lp.Lathe(0, axis * Matrix4x4.TRS(new Vector3(r * 1.3f, h * 0.9f, 0f), Quaternion.identity, Vector3.one),
+                new[] { -r * 1.2f, 0f, r * 1.2f }, new[] { r * 0.9f, r * 1.5f, r * 0.9f }, 5, null, 0f, true);
+        }
+
+        /// <summary>Череп: свод, скулы, челюсть, тёмные глазницы и нос.</summary>
+        static void SkullDetailed(LowPolyMesh lp, Vector3 p, float s)
+        {
+            p.y = Height(p.x, p.z) + s * 0.55f;
+            var m = Matrix4x4.TRS(p, Quaternion.Euler(R(-15f, 10f), R(0f, 360f), R(-20f, 20f)), Vector3.one * s);
+            lp.Lathe(0, m * Matrix4x4.TRS(new Vector3(0f, 0.05f, -0.05f), Quaternion.identity, new Vector3(1f, 1f, 1.15f)),
+                new[] { -0.45f, -0.25f, 0.1f, 0.45f, 0.62f }, new[] { 0.42f, 0.62f, 0.68f, 0.5f, 0f }, 8, null, 0f, true);
+            lp.Box(0, m, new Vector3(0f, -0.3f, 0.36f), new Vector3(0.62f, 0.3f, 0.36f));   // скулы
+            lp.Box(0, m, new Vector3(0f, -0.55f, 0.3f), new Vector3(0.46f, 0.16f, 0.36f));  // челюсть
+            lp.Box(0, m, new Vector3(0f, -0.46f, 0.47f), new Vector3(0.36f, 0.07f, 0.06f)); // зубы
+            for (int sx = -1; sx <= 1; sx += 2)
+                lp.Box(1, m, new Vector3(sx * 0.17f, -0.12f, 0.52f), new Vector3(0.2f, 0.17f, 0.06f)); // глазницы
+            lp.Box(1, m, new Vector3(0f, -0.3f, 0.55f), new Vector3(0.08f, 0.1f, 0.04f));         // нос
+        }
+
+        /// <summary>Грудная клетка: позвоночник и пять пар изогнутых рёбер из трёх сегментов.</summary>
+        static void Ribcage(LowPolyMesh lp, Vector3 p, float s)
+        {
+            p.y = Height(p.x, p.z) + 0.05f;
+            var m = Matrix4x4.TRS(p, Quaternion.Euler(0f, R(0f, 360f), R(-25f, 25f)), Vector3.one * s);
+            lp.Box(0, m, new Vector3(0f, 0.04f, 0f), new Vector3(0.07f, 0.07f, 0.8f));
+            for (int i = 0; i < 5; i++)
+            {
+                float z = -0.3f + i * 0.14f;
+                float w = 0.22f + 0.05f * Mathf.Sin(i * 0.7f);
+                for (int sx = -1; sx <= 1; sx += 2)
+                {
+                    lp.Box(0, m * Matrix4x4.TRS(new Vector3(sx * w * 0.45f, 0.1f, z), Quaternion.Euler(0f, 0f, sx * 30f), Vector3.one), Vector3.zero, new Vector3(w * 0.95f, 0.035f, 0.045f));
+                    lp.Box(0, m * Matrix4x4.TRS(new Vector3(sx * w * 0.95f, 0.22f, z), Quaternion.Euler(0f, 0f, sx * 75f), Vector3.one), Vector3.zero, new Vector3(w * 0.6f, 0.035f, 0.045f));
+                    lp.Box(0, m * Matrix4x4.TRS(new Vector3(sx * w * 0.8f, 0.36f, z), Quaternion.Euler(0f, 0f, sx * 130f), Vector3.one), Vector3.zero, new Vector3(w * 0.45f, 0.03f, 0.04f));
+                }
+            }
+        }
+
+        /// <summary>Лужа: плоский неровный многоугольник чуть выше пола.</summary>
+        static void Puddle(LowPolyMesh lp, Vector3 p)
+        {
+            float r = R(0.7f, 1.8f);
+            var m = Matrix4x4.TRS(new Vector3(p.x, Height(p.x, p.z) + 0.03f, p.z), Quaternion.Euler(0f, R(0f, 360f), 0f), new Vector3(1f, 1f, R(0.55f, 0.9f)));
+            lp.Lathe(0, m, new[] { 0f, 0.01f }, new[] { r, r * 0.97f }, 9, rng, 0.25f);
         }
 
         // ---------------------------------------------------------------- пропасть и мост
@@ -1816,6 +1883,20 @@ namespace FalseParadise.EditorTools
                 new Color(1f, 0.85f, 0.5f), new Color(1f, 0.7f, 0.35f), -0.02f, 80, FadeCurve(), 0.3f);
             ShapeBox(mps, new Vector3(2.4f, 3f, 2.4f));
 
+            // Герой-момент: холодный луч со свода падает на клетку, прутья отбрасывают тени
+            LightShaft(world, CagePos, 1.1f, 3f, 140f, 0.5f, true);
+            // Клетка подвешена на цепях к своду
+            var chains = new LowPolyMesh(4);
+            float cageTopY = basePos.y + top + 0.75f;
+            for (int k = 0; k < 3; k++)
+            {
+                float a = k * Mathf.PI * 2f / 3f + 0.4f;
+                Chain(chains, CagePos.x + Mathf.Cos(a) * 0.55f, CagePos.y + Mathf.Sin(a) * 0.55f, cageTopY);
+            }
+            MeshObject("Chains", root.parent, Register(chains.ToMesh("Z1_CageChains")), new[] { mIron, mIron, mIron, mIron }, false);
+            // Золотой ореол вокруг Сияющего
+            Halo(shining, shining.position + Vector3.up * 1.1f, 2.4f, 3.2f, new Color(1f, 0.82f, 0.45f, 0.35f));
+
             var cage = root.gameObject.AddComponent<ShiningCage>();
             SetRef(cage, "door", door);
             SetRef(cage, "shining", shining);
@@ -1881,6 +1962,91 @@ namespace FalseParadise.EditorTools
 
             var l = PointLight(root, "GateLight", root.position + root.forward * 2f + Vector3.up * 3f, new Color(0.3f, 1f, 0.9f), 26f, 5f);
             l.shadows = LightShadows.None;
+        }
+
+        static int shaftCount;
+
+        /// <summary>
+        /// Луч света из трещины в своде: несколько скрещённых полупрозрачных плоскостей с мягкими краями
+        /// (выглядит объёмно с любой стороны), холодный прожектор вниз и пыль в луче.
+        /// </summary>
+        static Light LightShaft(Transform parent, Vector2 xz, float topR, float botR, float spotIntensity, float alpha, bool shadows)
+        {
+            float floorY = Height(xz.x, xz.y);
+            float ceilY = CeilingH(xz.x, xz.y);
+            float h = Mathf.Max(3f, ceilY - floorY);
+            var root = new GameObject($"LightShaft_{++shaftCount}").transform;
+            root.SetParent(parent, false);
+            root.position = new Vector3(xz.x, ceilY, xz.y);
+
+            var beam = new GameObject("Beam");
+            beam.transform.SetParent(root, false);
+            beam.AddComponent<MeshFilter>().sharedMesh = Register(ShaftMesh($"Z1_Shaft_{shaftCount}", topR, botR, h, 6, alpha));
+            var mr = beam.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = gShaft;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+
+            var spot = new GameObject("Spot").AddComponent<Light>();
+            spot.transform.SetParent(root, false);
+            spot.transform.localPosition = Vector3.down * 0.3f;
+            spot.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
+            spot.type = LightType.Spot;
+            spot.color = new Color(0.72f, 0.84f, 1f);
+            spot.range = h + 4f;
+            spot.spotAngle = Mathf.Clamp(2f * Mathf.Atan(botR * 1.4f / h) * Mathf.Rad2Deg, 15f, 80f);
+            spot.innerSpotAngle = spot.spotAngle * 0.45f;
+            spot.intensity = spotIntensity;
+            if (shadows) ShadowLight(spot); else spot.shadows = LightShadows.None;
+
+            var dust = new GameObject("Dust");
+            dust.transform.SetParent(root, false);
+            dust.transform.position = new Vector3(xz.x, floorY + h * 0.45f, xz.y);
+            var ps = Particles(dust, pDust, 10f + botR * 6f, 4f, 7f, 0.02f, 0.08f, 0.02f, 0.045f,
+                new Color(0.85f, 0.92f, 1f, 0.8f), new Color(1f, 0.95f, 0.85f, 0.6f), -0.002f, 160, FadeCurve(), 0.15f);
+            ShapeBox(ps, new Vector3(botR * 1.3f, h * 0.85f, botR * 1.3f));
+            return spot;
+        }
+
+        static readonly float[] Cols = { -1f, -0.5f, 0f, 0.5f, 1f };
+        static readonly float[] ColA = { 0f, 0.45f, 0.75f, 0.45f, 0f };
+
+        static Mesh ShaftMesh(string name, float topR, float botR, float height, int planes, float alpha)
+        {
+            var v = new List<Vector3>();
+            var c = new List<Color>();
+            var t = new List<int>();
+            float[] rows = { 0f, 0.12f, 0.6f, 1f };
+            float[] rowA = { 0f, 1f, 0.75f, 0.25f };
+            for (int p = 0; p < planes; p++)
+            {
+                float a = p * Mathf.PI / planes;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                int start = v.Count;
+                for (int r = 0; r < rows.Length; r++)
+                {
+                    float R = Mathf.Lerp(topR, botR, rows[r]);
+                    // 5 колонок: плавный спад к краям, без резкой «лазерной» середины
+                    for (int col = 0; col < Cols.Length; col++)
+                    {
+                        v.Add(dir * (Cols[col] * R) + Vector3.down * (rows[r] * height));
+                        c.Add(new Color(1f, 1f, 1f, ColA[col] * rowA[r] * alpha));
+                    }
+                }
+                int n = Cols.Length;
+                for (int r = 0; r < rows.Length - 1; r++)
+                for (int col = 0; col < n - 1; col++)
+                {
+                    int i0 = start + r * n + col, i1 = i0 + 1, i2 = i0 + n, i3 = i0 + n + 1;
+                    t.Add(i0); t.Add(i2); t.Add(i1);
+                    t.Add(i1); t.Add(i2); t.Add(i3);
+                }
+            }
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(v);
+            mesh.SetColors(c);
+            mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         static Mesh GlowQuad(string name, float w, float h, Color bottom, Color top)
@@ -2022,10 +2188,10 @@ namespace FalseParadise.EditorTools
             // Слабый тёплый свет вокруг героя, чтобы между факелами не было чёрных провалов
             var lantern = new GameObject("Lantern").AddComponent<Light>();
             lantern.transform.SetParent(cam.transform, false);
-            lantern.transform.localPosition = new Vector3(0.3f, -0.2f, 0.2f);
+            lantern.transform.localPosition = new Vector3(0f, 0.5f, -0.7f);
             lantern.type = LightType.Point;
-            lantern.range = 7f;
-            lantern.intensity = 0.6f;
+            lantern.range = 9f;
+            lantern.intensity = 1.2f;
             lantern.color = new Color(1f, 0.75f, 0.5f);
             lantern.shadows = LightShadows.None;
 
@@ -2081,7 +2247,7 @@ namespace FalseParadise.EditorTools
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = illusionAmbient;
             RenderSettings.ambientEquatorColor = new Color(0.1f, 0.1f, 0.15f);
-            RenderSettings.ambientGroundColor = new Color(0.085f, 0.075f, 0.08f);
+            RenderSettings.ambientGroundColor = new Color(0.14f, 0.105f, 0.085f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
@@ -2104,6 +2270,11 @@ namespace FalseParadise.EditorTools
                 var f = PointLight(fillRoot, "Bounce", Ground(room.c, Mathf.Min(6f, room.r * 0.35f)), new Color(0.6f, 0.66f, 0.92f), room.r * 1.4f + 8f, room.r * 1f);
                 f.shadows = LightShadows.None;
             }
+
+            // Лучи из трещин в своде: у входа и в зале первого боя
+            var shafts = new GameObject("LightShafts").transform;
+            LightShaft(shafts, new Vector2(-4f, 9f), 0.8f, 2.2f, 45f, 0.4f, false);
+            LightShaft(shafts, new Vector2(16f, 50f), 0.9f, 2.6f, 80f, 0.38f, false);
 
             // Бледный свет из расщелины за спиной — оттуда пришли друзья
             var crack = PointLight(null, "LightFromCrack", Ground(SpawnPos + new Vector2(0f, -8f), 4f), new Color(0.75f, 0.82f, 0.95f), 18f, 10f);
@@ -2316,13 +2487,16 @@ namespace FalseParadise.EditorTools
         }
 
         /// <summary>Неподвижный мягкий ореол (несколько больших аддитивных частиц, перекрывающих друг друга).</summary>
-        static void Halo(Transform parent, Vector3 pos, float sizeMin, float sizeMax)
+        static void Halo(Transform parent, Vector3 pos, float sizeMin, float sizeMax) =>
+            Halo(parent, pos, sizeMin, sizeMax, new Color(1f, 0.62f, 0.3f, 0.3f));
+
+        static void Halo(Transform parent, Vector3 pos, float sizeMin, float sizeMax, Color color)
         {
             var go = new GameObject("Halo");
             go.transform.SetParent(parent, false);
             go.transform.position = pos;
             var ps = Particles(go, pHalo, 4f, 1.2f, 1.6f, 0f, 0.02f, sizeMin, sizeMax,
-                new Color(1f, 0.62f, 0.3f, 0.3f), new Color(1f, 0.5f, 0.2f, 0.24f), 0f, 8, FlatCurve(), 0f);
+                color, color * new Color(1f, 0.85f, 0.75f, 0.8f), 0f, 8, FlatCurve(), 0f);
             ShapeSphere(ps, 0.05f);
         }
 
