@@ -540,6 +540,83 @@ namespace FalseParadise.EditorTools
             }
         }
 
+        // ---------------------------------------------------------------- луна
+
+        /// <summary>
+        /// Диск луны 512×512 с альфой: моря (тёмные равнины), кратеры с тёмным дном и светлым валом,
+        /// лучевой кратер, затемнение к краю и неполная фаза (тень на левом краю). Шум берётся
+        /// в сферических координатах, поэтому пятна у края сжимаются, как на настоящем шаре.
+        /// </summary>
+        internal static Texture2D Moon()
+        {
+            const int N = 512;
+            const float R = 0.47f;
+            var rnd = new System.Random(1969);
+            // Кратеры в координатах (долгота, широта) 0..1
+            int count = 90;
+            var cr = new Vector3[count];
+            for (int i = 0; i < count; i++)
+            {
+                float size = 0.008f + Mathf.Pow((float)rnd.NextDouble(), 3f) * 0.07f;
+                cr[i] = new Vector3((float)rnd.NextDouble() * 0.8f + 0.1f, (float)rnd.NextDouble() * 0.8f + 0.1f, size);
+            }
+            var tycho = new Vector2(0.45f, 0.24f);
+            var sun = new Vector3(-0.42f, 0.12f, 0.9f).normalized;
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float nx = ((x + 0.5f) / N - 0.5f) / R, ny = ((y + 0.5f) / N - 0.5f) / R;
+                float d = Mathf.Sqrt(nx * nx + ny * ny);
+                if (d > 1.02f) { px[y * N + x] = new Color32(0, 0, 0, 0); continue; }
+                float z = Mathf.Sqrt(Mathf.Max(0f, 1f - d * d));
+                float lon = Mathf.Atan2(nx, Mathf.Max(z, 1e-4f)) / Mathf.PI + 0.5f;
+                float lat = Mathf.Asin(Mathf.Clamp(ny, -1f, 1f)) / Mathf.PI + 0.5f;
+
+                float maria = SStep(0.5f, 0.62f, Fbm(lon * 0.9f + 0.1f, lat * 0.9f + 0.2f, 3, 4, 0.55f, 600));
+                float lum = Mathf.Lerp(1f, 0.5f, maria);
+                lum *= 0.88f + 0.18f * Fbm(lon, lat, 24, 4, 0.55f, 610); // зерно реголита
+                for (int i = 0; i < count; i++)
+                {
+                    var c = cr[i];
+                    float dd = Vector2.Distance(new Vector2(lon, lat), new Vector2(c.x, c.y)) / c.z;
+                    if (dd > 2.2f) continue;
+                    if (dd < 0.85f) lum *= Mathf.Lerp(0.82f, 0.95f, dd / 0.85f);         // дно
+                    else if (dd < 1.15f) lum *= 1f + 0.22f * (1f - Mathf.Abs(dd - 1f) / 0.15f); // вал
+                    else lum *= 1f + 0.05f * (1f - (dd - 1.15f) / 1.05f);                 // выброс
+                }
+                // Лучи вокруг яркого кратера
+                var tv = new Vector2(lon, lat) - tycho;
+                float tr = tv.magnitude;
+                float ang = Mathf.Atan2(tv.y, tv.x);
+                float rays = Mathf.Pow(Mathf.Abs(Mathf.Sin(ang * 7f + Mathf.Sin(ang * 3f) * 1.3f)), 18f);
+                lum *= 1f + rays * 0.3f * SStep(0.5f, 0.02f, tr) + 0.6f * (1f - SStep(0.006f, 0.014f, tr));
+
+                // Затемнение к краю и фаза
+                lum *= 0.72f + 0.28f * Mathf.Sqrt(z);
+                var n = new Vector3(nx, ny, z);
+                float phase = SStep(-0.12f, 0.3f, Vector3.Dot(n, sun));
+                lum *= 0.06f + 0.94f * phase;
+
+                float a = 1f - SStep(0.985f, 1.015f, d);
+                var col = new Color(1f, 0.985f, 0.95f) * lum;
+                px[y * N + x] = new Color32((byte)Mathf.Clamp(col.r * 255f, 0, 255), (byte)Mathf.Clamp(col.g * 255f, 0, 255), (byte)Mathf.Clamp(col.b * 255f, 0, 255), (byte)(a * 255f));
+            }
+            EnsureFolder(Dir);
+            string path = $"{Dir}/T_Moon.png";
+            var t = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            t.SetPixels32(px);
+            System.IO.File.WriteAllBytes(path, t.EncodeToPNG());
+            Object.DestroyImmediate(t);
+            AssetDatabase.ImportAsset(path);
+            var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+            ti.wrapMode = TextureWrapMode.Clamp;
+            ti.alphaIsTransparency = true;
+            ti.sRGBTexture = true;
+            ti.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
         // ---------------------------------------------------------------- сохранение
 
         static Pair Save(string name, int w, int hgt, Color[] col, float[] height, float strength, bool tile)

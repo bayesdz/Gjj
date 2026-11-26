@@ -189,7 +189,7 @@ namespace FalseParadise.EditorTools
         static Material mElfSkin, mElfCloak, mElfHair, mElderRobe, mElfAccent;
         static Material mShadow, mGuardLight, mGuardEyes, mIron;
         static Material mSkin, mSleeve, mWoodDark, mSteel;
-        static Material gMoon, gStars, gShaft, gVeil, gFlowers;
+        static Material gMoon, gStars, gShaft, gVeil, gFlowers, mMoonDisc;
         static Material pFire, pSmoke, pEmbers, pHalo, pDust, pMotes, pShadowSmoke, pGold, pHaze;
         static Material mBlock;
         static readonly List<Vector4> ruinSegs = new List<Vector4>();
@@ -310,7 +310,8 @@ namespace FalseParadise.EditorTools
             mWoodDark = Lit("G_WoodDark", new Color(0.3f, 0.2f, 0.13f));
             mSteel = Lit("G_Steel", new Color(0.42f, 0.44f, 0.48f), 0f, 0.45f, 0.7f);
 
-            gMoon = Glow("G_Moon", new Color(0.86f, 0.92f, 1f), 2.2f);
+            gMoon = Glow("G_MoonGlow", new Color(1f, 1f, 1f), 1f);
+            mMoonDisc = MoonMaterial();
             gStars = Glow("G_Stars", new Color(0.8f, 0.88f, 1f), 2f);
             gShaft = Glow("G_Shaft", new Color(0.7f, 0.82f, 1f), 0.3f);
             gVeil = Glow("G_Veil", new Color(1f, 0.62f, 0.4f), 1.2f);
@@ -1654,30 +1655,69 @@ namespace FalseParadise.EditorTools
             return cam;
         }
 
-        /// <summary>Луна и звёзды за провалом: свечение без тумана (UnlitGlow), видно только через дыру в своде.</summary>
+        /// <summary>Текстурный диск луны (шейдер без тумана и освещения).</summary>
+        static Material MoonMaterial()
+        {
+            string path = $"{MatDir}/G_MoonDisc.mat";
+            var shader = Shader.Find("FalseParadise/MoonDisc") ?? Shader.Find("Universal Render Pipeline/Unlit");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.shader = shader;
+            m.SetTexture("_MainTex", TextureKit.Moon());
+            m.SetColor("_BaseColor", new Color(1f, 0.98f, 0.95f, 1f));
+            m.SetFloat("_Intensity", 0.42f); // после экспозиции поста ≈ 0.9: кратеры не выгорают, ореол даёт Bloom
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        /// <summary>
+        /// Ночное небо за провалом: свечение неба вокруг луны, двойной ореол, сама луна (кратеры, моря, фаза)
+        /// и звёзды. Всё без тумана, поэтому видно с любой точки площади, но только сквозь провал.
+        /// </summary>
         static void BuildMoon()
         {
             var root = new GameObject("NightSky").transform;
             var fwd = MoonRot * Vector3.forward;
             var holeTop = new Vector3(HoleC.x, CeilingH(HoleC.x, HoleC.y) + 2f, HoleC.y);
-            var moonPos = holeTop - fwd * 75f;
+            var face = Quaternion.LookRotation(fwd); // лицом к площади
+
+            void SkyDisc(string name, float dist, float radius, Color center, Color edge)
+            {
+                var go = new GameObject(name);
+                go.transform.SetParent(root, false);
+                go.transform.position = holeTop - fwd * dist;
+                go.transform.rotation = face;
+                go.AddComponent<MeshFilter>().sharedMesh = Register(GlowDisc("G_" + name, radius, center, edge, 32));
+                go.AddComponent<MeshRenderer>().sharedMaterial = gMoon;
+            }
+            // Небо светлеет к луне: провал читается как ночное небо, а не пустота
+            SkyDisc("SkyGlow", 100f, 55f, new Color(0.12f, 0.18f, 0.32f, 1f), new Color(0.03f, 0.05f, 0.1f, 0f));
+            SkyDisc("MoonHaloWide", 90f, 20f, new Color(0.45f, 0.55f, 0.8f, 0.55f), new Color(0.2f, 0.28f, 0.5f, 0f));
+            SkyDisc("MoonHaloTight", 85f, 8.5f, new Color(0.75f, 0.82f, 1f, 0.16f), new Color(0.5f, 0.6f, 0.9f, 0f));
 
             var moon = new GameObject("Moon");
             moon.transform.SetParent(root, false);
-            moon.transform.position = moonPos;
-            moon.transform.rotation = Quaternion.LookRotation(fwd);
-            moon.AddComponent<MeshFilter>().sharedMesh = Register(DiscMesh("G_MoonDisc", 4.2f, 9.5f, 24));
-            moon.AddComponent<MeshRenderer>().sharedMaterial = gMoon;
+            moon.transform.position = holeTop - fwd * 80f;
+            moon.transform.rotation = face * Quaternion.Euler(0f, 180f, 12f);
+            moon.transform.localScale = Vector3.one * 10.5f;
+            moon.AddComponent<MeshFilter>().sharedMesh = Register(CenteredQuad("G_MoonQuad"));
+            var mr = moon.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mMoonDisc;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
 
             var stars = new GlowPointsMesh();
             var r = new System.Random(3);
-            for (int i = 0; i < 260; i++)
+            for (int i = 0; i < 320; i++)
             {
-                // Звёзды на полусфере над провалом, в пределах видимого конуса
                 var dir = new Vector3(Rr(r, -1f, 1f), Rr(r, 0.35f, 1f), Rr(r, -1f, 1f)).normalized;
-                var p = holeTop + dir * Rr(r, 60f, 90f);
+                if (Vector3.Angle(dir, -fwd) < 9f) continue; // не поверх луны и ореола
+                var p = holeTop + dir * Rr(r, 95f, 110f);
                 float b = Mathf.Pow(Rr(r, 0f, 1f), 3f);
-                stars.Point(p, 0.12f + b * 0.28f, new Color(0.75f, 0.85f, 1f) * (0.35f + b), Rr(r, 0f, 360f));
+                stars.Point(p, 0.1f + b * 0.3f, new Color(0.75f, 0.85f, 1f) * (0.3f + b), Rr(r, 0f, 360f));
             }
             var sg = new GameObject("Stars");
             sg.transform.SetParent(root, false);
@@ -1685,35 +1725,50 @@ namespace FalseParadise.EditorTools
             sg.AddComponent<MeshRenderer>().sharedMaterial = gStars;
         }
 
-        /// <summary>Диск с мягким ореолом: центр непрозрачный, к краю ореола альфа → 0.</summary>
-        static Mesh DiscMesh(string name, float r, float haloR, int seg)
+        /// <summary>Круг с цветом в центре и прозрачным краем (для UnlitGlow).</summary>
+        static Mesh GlowDisc(string name, float radius, Color center, Color edge, int seg)
         {
             var v = new List<Vector3> { Vector3.zero };
-            var c = new List<Color> { Color.white };
+            var c = new List<Color> { center };
             var t = new List<int>();
-            for (int i = 0; i < seg; i++)
+            float[] rings = { 0.25f, 0.55f, 1f };
+            for (int k = 0; k < rings.Length; k++)
             {
-                float a = i * Mathf.PI * 2f / seg;
-                var d = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
-                v.Add(d * r); c.Add(new Color(1f, 1f, 1f, 1f));
-                v.Add(d * (r * 1.05f)); c.Add(new Color(0.8f, 0.88f, 1f, 0.35f));
-                v.Add(d * haloR); c.Add(new Color(0.5f, 0.6f, 0.9f, 0f));
+                // Плавный спад: квадратичный, без резкой границы
+                var col = Color.Lerp(center, edge, Mathf.Pow(rings[k], 0.7f));
+                if (k == rings.Length - 1) col = edge;
+                for (int i = 0; i < seg; i++)
+                {
+                    float a = i * Mathf.PI * 2f / seg;
+                    v.Add(new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * radius * rings[k]);
+                    c.Add(col);
+                }
             }
             for (int i = 0; i < seg; i++)
             {
-                int a0 = 1 + i * 3, b0 = 1 + ((i + 1) % seg) * 3;
-                t.Add(0); t.Add(b0); t.Add(a0);
-                for (int k = 0; k < 2; k++)
+                int i1 = (i + 1) % seg;
+                t.Add(0); t.Add(1 + i1); t.Add(1 + i);
+                for (int k = 0; k < rings.Length - 1; k++)
                 {
-                    int a = a0 + k, b = b0 + k, a1 = a + 1, b1 = b + 1;
-                    t.Add(a); t.Add(b); t.Add(b1);
-                    t.Add(a); t.Add(b1); t.Add(a1);
+                    int a0 = 1 + k * seg + i, a1 = 1 + k * seg + i1, b0 = a0 + seg, b1 = a1 + seg;
+                    t.Add(a0); t.Add(a1); t.Add(b1);
+                    t.Add(a0); t.Add(b1); t.Add(b0);
                 }
             }
             var mesh = new Mesh { name = name };
             mesh.SetVertices(v);
             mesh.SetColors(c);
             mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static Mesh CenteredQuad(string name)
+        {
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(new List<Vector3> { new Vector3(-0.5f, -0.5f, 0f), new Vector3(0.5f, -0.5f, 0f), new Vector3(0.5f, 0.5f, 0f), new Vector3(-0.5f, 0.5f, 0f) });
+            mesh.SetUVs(0, new List<Vector2> { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(0f, 1f) });
+            mesh.SetTriangles(new[] { 0, 2, 1, 0, 3, 2 }, 0);
             mesh.RecalculateBounds();
             return mesh;
         }
@@ -1762,9 +1817,11 @@ namespace FalseParadise.EditorTools
             var fwd = MoonRot * Vector3.forward;
             var holeY = CeilingH(HoleC.x, HoleC.y);
             var shaft = new GameObject("MoonShaft").transform;
-            shaft.position = new Vector3(HoleC.x, holeY, HoleC.y);
+            // Луч начинается выше провала, внутри шахты: свет идёт от неба, а не из края дыры
+            float up = 4.5f / Mathf.Max(0.3f, -fwd.y);
+            shaft.position = new Vector3(HoleC.x, holeY, HoleC.y) - fwd * up;
             shaft.rotation = Quaternion.FromToRotation(Vector3.down, fwd);
-            float len = (holeY - Height(CircleC.x, CircleC.y)) / Mathf.Max(0.3f, -fwd.y);
+            float len = (holeY - Height(CircleC.x, CircleC.y)) / Mathf.Max(0.3f, -fwd.y) + up;
             var beam = new GameObject("Beam");
             beam.transform.SetParent(shaft, false);
             beam.AddComponent<MeshFilter>().sharedMesh = Register(Z.ShaftMesh("G_MoonShaft", HoleR * 0.85f, HoleR * 1.05f, len, 7, 0.16f));
@@ -1784,6 +1841,10 @@ namespace FalseParadise.EditorTools
             RuinKit.Haze(haze, "CampHaze", Ground(Camp.c, 2.2f), new Vector3(14f, 3.5f, 14f), pHaze, new Color(0.26f, 0.44f, 0.44f, 0.05f), 10, 5f, 9f);
             RuinKit.Haze(haze, "TunnelHaze", Ground(new Vector2(-32f, 0f), 2f), new Vector3(20f, 3f, 6f), pHaze, new Color(0.22f, 0.26f, 0.32f, 0.05f), 8, 4f, 7f);
             RuinKit.Haze(haze, "MoonHaze", Ground(CircleC, 3.5f), new Vector3(11f, 6f, 11f), pDust, new Color(0.55f, 0.66f, 0.85f, 0.035f), 14, 6f, 10f);
+            // Шахта провала: подсвеченный луной воздух и холодный отсвет на стенках
+            var chimney = new Vector3(HoleC.x, holeY + 3.5f, HoleC.y);
+            RuinKit.Haze(haze, "ChimneyHaze", chimney, new Vector3(HoleR * 1.6f, 6f, HoleR * 1.6f), pDust, new Color(0.5f, 0.6f, 0.85f, 0.05f), 10, 5f, 8f);
+            Z.PointLight(haze, "ChimneyMoonlight", chimney, new Color(0.62f, 0.74f, 1f), 13f, 7f).shadows = LightShadows.None;
             RuinKit.Probe(haze, Ground(Plaza.c, 4f), new Vector3(44f, 20f, 44f), 1f);
             RuinKit.Probe(haze, Ground(new Vector2(GateX - 4f, 0f), 4f), new Vector3(16f, 16f, 20f), 1f);
 
@@ -1834,11 +1895,7 @@ namespace FalseParadise.EditorTools
             grain.type.Override(FilmGrainLookup.Thin1);
             grain.intensity.Override(0.22f);
             grain.response.Override(0.85f);
-            var dof = profile.Add<DepthOfField>(true);
-            dof.mode.Override(DepthOfFieldMode.Gaussian);
-            dof.gaussianStart.Override(30f);
-            dof.gaussianEnd.Override(80f);
-            dof.gaussianMaxRadius.Override(0.8f);
+            // DOF здесь не нужен: дистанции в гроте короткие, а небо за провалом (без глубины) он бы размыл
             foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
             AssetDatabase.SaveAssets();
             return profile;
