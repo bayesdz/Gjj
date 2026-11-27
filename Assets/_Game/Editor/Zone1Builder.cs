@@ -236,6 +236,7 @@ namespace FalseParadise.EditorTools
 
                 EditorUtility.DisplayProgressBar("Zone 1", "Свод пещеры", 0.22f);
                 BuildCeiling(world);
+                BuildBounds(world);
 
                 EditorUtility.DisplayProgressBar("Zone 1", "Древние залы: кладка и фрески", 0.3f);
                 BuildRuins(world);
@@ -623,6 +624,16 @@ namespace FalseParadise.EditorTools
             float dome = d < 0f ? 7.5f + 7.5f * Smooth(0f, 18f, -d) : 7.5f - d * 0.7f;
             dome += (Noise(x, z, 0.15f, 2500f) - 0.5f) * 3f + (Noise(x, z, 0.45f, 2700f) - 0.5f) * 0.5f;
             return FloorH(x, z) + dome;
+        }
+
+        /// <summary>Невидимая ограда по контуру пещеры: по камням на склонах нельзя выбраться за карту.</summary>
+        static void BuildBounds(Transform world)
+        {
+            var keys = new[] { SpawnPos, Goblin1Pos, Goblin2Pos, Goblin3Pos, CagePos, FirePos, BurrowPos, ToyPos, DrawingPos, ExitArchPos };
+            Register(RuinKit.Fence(world, "Z1_Bounds", Sdf, (a, b) => new Vector2(
+                Mathf.Min(Height(a.x, a.y), Height(b.x, b.y)) - 4f,
+                Mathf.Max(Mathf.Max(CeilingH(a.x, a.y), CeilingH(b.x, b.y)), Mathf.Max(Height(a.x, a.y), Height(b.x, b.y))) + 6f),
+                MinX, MaxX, MinZ, MaxZ, 1.1f, keys, "Зона 1"));
         }
 
         static void BuildCeiling(Transform world)

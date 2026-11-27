@@ -156,6 +156,21 @@ namespace FalseParadise.EditorTools
             return h;
         }
 
+        /// <summary>
+        /// Невидимая ограда по контуру каньона: по камням на склонах нельзя выбраться на гребни.
+        /// Не ниже 40 м — выше верха лестницы к свету (~28 м).
+        /// </summary>
+        static void BuildBounds(Transform world)
+        {
+            var keys = new List<Vector2> { SpawnPos, ForgePos, GardenPos, Garden2Pos, WellPos, FirePos, Guard1Pos, Guard2Pos, SmithPos, ChiefPos, SonPos,
+                new Vector2(FortMaxX + 30f, 88f) };
+            keys.AddRange(Huts);
+            Register(RuinKit.Fence(world, "Z2_Bounds", Sdf, (a, b) => new Vector2(
+                Mathf.Min(FloorH(a.x, a.y), FloorH(b.x, b.y)) - 4f,
+                Mathf.Max(40f, Mathf.Max(Height(a.x, a.y), Height(b.x, b.y)) + 10f)),
+                MinX, MaxX, MinZ, MaxZ, 1.1f, keys, "Зона 2"));
+        }
+
         static Vector3 Ground(Vector2 p, float lift = 0f) => new Vector3(p.x, Height(p.x, p.y) + lift, p.y);
 
         static float Hash(int x, int z, int s)
@@ -211,6 +226,7 @@ namespace FalseParadise.EditorTools
 
                 EditorUtility.DisplayProgressBar("Zone 2", "Рельеф каньона", 0.15f);
                 BuildTerrain(world);
+                BuildBounds(world);
 
                 EditorUtility.DisplayProgressBar("Zone 2", "Хижины, кузница, огороды", 0.35f);
                 BuildHuts(world);

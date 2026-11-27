@@ -197,5 +197,65 @@ namespace FalseParadise.EditorTools
             m.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
             EditorUtility.SetDirty(m);
         }
+
+        /// <summary>
+        /// Невидимая ограда по контуру проходимой области (sdf = iso, чуть внутри скалы): по камням и уступам
+        /// на склонах нельзя забраться на стены и выйти за карту. Marching squares по сетке 1 м, вертикальные
+        /// полосы от span(a, b).lo до span(a, b).hi, треугольники в обе стороны, только MeshCollider.
+        /// Предупреждает, если точка интереса оказалась у самой ограды.
+        /// </summary>
+        internal static Mesh Fence(Transform parent, string meshName, System.Func<float, float, float> sdf,
+            System.Func<Vector2, Vector2, Vector2> span, float minX, float maxX, float minZ, float maxZ, float iso,
+            IEnumerable<Vector2> keys, string label)
+        {
+            const float step = 1f;
+            int nx = Mathf.RoundToInt((maxX - minX) / step) + 1;
+            int nz = Mathf.RoundToInt((maxZ - minZ) / step) + 1;
+            var f = new float[nx, nz];
+            for (int ix = 0; ix < nx; ix++)
+            for (int iz = 0; iz < nz; iz++)
+                f[ix, iz] = sdf(minX + ix * step, minZ + iz * step) - iso;
+            var v = new List<Vector3>();
+            var t = new List<int>();
+            Vector2 P(int ix, int iz) => new Vector2(minX + ix * step, minZ + iz * step);
+            Vector2 Cross(int ax, int az, int bx, int bz)
+            {
+                float fa = f[ax, az], fb = f[bx, bz];
+                return Vector2.Lerp(P(ax, az), P(bx, bz), fa / (fa - fb));
+            }
+            void Strip(Vector2 a, Vector2 b)
+            {
+                var lh = span(a, b);
+                int i = v.Count;
+                v.Add(new Vector3(a.x, lh.x, a.y)); v.Add(new Vector3(b.x, lh.x, b.y));
+                v.Add(new Vector3(b.x, lh.y, b.y)); v.Add(new Vector3(a.x, lh.y, a.y));
+                t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3, i, i + 2, i + 1, i, i + 3, i + 2 });
+            }
+            for (int ix = 0; ix < nx - 1; ix++)
+            for (int iz = 0; iz < nz - 1; iz++)
+            {
+                var pts = new List<Vector2>(4);
+                if ((f[ix, iz] < 0f) != (f[ix + 1, iz] < 0f)) pts.Add(Cross(ix, iz, ix + 1, iz));
+                if ((f[ix + 1, iz] < 0f) != (f[ix + 1, iz + 1] < 0f)) pts.Add(Cross(ix + 1, iz, ix + 1, iz + 1));
+                if ((f[ix, iz + 1] < 0f) != (f[ix + 1, iz + 1] < 0f)) pts.Add(Cross(ix, iz + 1, ix + 1, iz + 1));
+                if ((f[ix, iz] < 0f) != (f[ix, iz + 1] < 0f)) pts.Add(Cross(ix, iz, ix, iz + 1));
+                if (pts.Count >= 2) Strip(pts[0], pts[1]);
+                if (pts.Count == 4) Strip(pts[2], pts[3]);
+            }
+            foreach (var k in keys)
+                if (sdf(k.x, k.y) > iso - 0.5f) Debug.LogWarning($"[False Paradise] {label}: точка {k} у самой ограды (sdf {sdf(k.x, k.y):F2})");
+
+            var mesh = new Mesh { name = meshName };
+            mesh.indexFormat = v.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            mesh.SetVertices(v);
+            mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            var go = new GameObject("Bounds");
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+            Debug.Log($"[False Paradise] {label}: ограда {t.Count / 12} полос");
+            return mesh;
+        }
     }
 }
