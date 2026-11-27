@@ -122,6 +122,37 @@ namespace FalseParadise.EditorTools
             return p;
         }
 
+        // ---------------------------------------------------------------- металл
+
+        /// <summary>Потёртый кованый металл: вертикальная шлифовка, вмятины от молота, царапины, тёмные пятна патины.</summary>
+        internal static Pair WornMetal()
+        {
+            if (cache.TryGetValue("metal", out var p)) return p;
+            const int N = 512;
+            var h = new float[N * N];
+            var col = new Color[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (float)x / N, v = (float)y / N;
+                // Шлифовка: шум, вытянутый по вертикали
+                float brush = VNoise(u, v * 0.03f, 128, 300) * 0.6f + VNoise(u, v * 0.06f, 256, 310) * 0.4f;
+                Worley(u, v, 9, 320, out float f1, out _, out _);
+                float dent = SStep(0.45f, 0f, f1); // чаши от молота
+                float scratchLine = Mathf.Abs(Mathf.Sin((u * 0.8f + v * 1.7f + VNoise(u, v, 6, 330) * 0.2f) * Mathf.PI * 70f));
+                float scratch = SStep(0.985f, 1f, scratchLine) * SStep(0.55f, 0.8f, VNoise(u, v, 5, 340));
+                float patina = SStep(0.5f, 0.78f, Fbm(u, v, 4, 4, 0.55f, 350));
+                h[y * N + x] = brush * 0.25f - dent * 0.55f - scratch * 0.2f + Fbm(u, v, 32, 2, 0.5f, 360) * 0.15f;
+                float lum = 0.82f + brush * 0.18f - dent * 0.08f + scratch * 0.25f;
+                lum *= 1f - patina * 0.35f;
+                var tint = Color.Lerp(new Color(0.96f, 0.98f, 1.02f), new Color(0.78f, 0.9f, 0.88f), patina);
+                col[y * N + x] = tint * lum;
+            }
+            p = Save("T_WornMetal", N, N, col, h, 3f, true);
+            cache["metal"] = p;
+            return p;
+        }
+
         // ---------------------------------------------------------------- кладка
 
         /// <summary>Кладка: 8 рядов блоков разной длины со швами, сколами, фасками и пятнами.</summary>

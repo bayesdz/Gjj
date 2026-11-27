@@ -192,6 +192,8 @@ namespace FalseParadise.EditorTools
         static Material gMoon, gStars, gShaft, gVeil, gFlowers, mMoonDisc;
         static Material pFire, pSmoke, pEmbers, pHalo, pDust, pMotes, pShadowSmoke, pGold, pHaze;
         static Material mBlock;
+        static Material mCircleStone, mGrassRoot, mGrassTip, mDoorMetal, mTentGlow, mWarmGlow;
+        static Material pArena, pHaloWarm, mCrystalDim;
         static readonly List<Vector4> ruinSegs = new List<Vector4>();
 
         [MenuItem("False Paradise/Build Elven Gate")]
@@ -291,6 +293,17 @@ namespace FalseParadise.EditorTools
             mLeaf = Lit("G_Leaf", new Color(0.62f, 0.86f, 0.84f), 0.45f, 0.3f);
             mGrass = Lit("G_Grass", new Color(0.5f, 0.64f, 0.56f), 0f, 0.2f);
             mGrass.SetFloat("_Cull", (float)CullMode.Off);
+            // Трава у круга (эксперт): тёмные корни, приглушённые кончики — не «белые иголки»
+            mGrassRoot = Lit("G_GrassRoot", new Color(0.15f, 0.21f, 0.2f), 0f, 0.1f);
+            mGrassRoot.SetFloat("_Cull", (float)CullMode.Off);
+            mGrassTip = Lit("G_GrassTip", new Color(0.42f, 0.55f, 0.5f), 0f, 0.15f);
+            mGrassTip.SetFloat("_Cull", (float)CullMode.Off);
+            // Пол платформы: тёмный влажный камень — свет луча даёт рисунок плит, а не белое пятно
+            mCircleStone = Lit("G_CircleStone", new Color(0.34f, 0.37f, 0.4f), 0f, 0.42f);
+            mCrystalDim = Lit("G_CrystalDim", new Color(0.24f, 0.75f, 0.72f), 0.45f, 0.85f);
+            mDoorMetal = Lit("G_DoorMetal", new Color(0.62f, 0.66f, 0.7f), 0f, 0.58f, 0.75f);
+            mTentGlow = Lit("G_TentGlow", new Color(1f, 0.6f, 0.3f), 1.6f);
+            mWarmGlow = Lit("G_WarmGlow", new Color(1f, 0.64f, 0.32f), 2.6f);
             mIron = Lit("G_Iron", new Color(0.2f, 0.21f, 0.23f), 0f, 0.45f, 0.6f);
 
             mElfSkin = Lit("G_ElfSkin", new Color(0.88f, 0.8f, 0.74f));
@@ -313,7 +326,7 @@ namespace FalseParadise.EditorTools
             gMoon = Glow("G_MoonGlow", new Color(1f, 1f, 1f), 1f);
             mMoonDisc = MoonMaterial();
             gStars = Glow("G_Stars", new Color(0.8f, 0.88f, 1f), 2f);
-            gShaft = Glow("G_Shaft", new Color(0.7f, 0.82f, 1f), 0.3f);
+            gShaft = ShaftMaterial("G_Shaft", new Color(0.7f, 0.82f, 1f), 0.42f);
             gVeil = Glow("G_Veil", new Color(1f, 0.62f, 0.4f), 1.2f);
             gFlowers = Glow("G_Flowers", new Color(0.6f, 1f, 0.95f), 2.2f);
 
@@ -325,6 +338,8 @@ namespace FalseParadise.EditorTools
             pMotes = Soft("G_Motes", new Color(0.35f, 1f, 0.9f), 3f, true, 2f);
             pShadowSmoke = Soft("G_ShadowSmoke", new Color(0.01f, 0.01f, 0.02f, 0.5f), 1f, false, 2f);
             pGold = Soft("G_GoldMotes", new Color(1f, 0.78f, 0.4f), 3.5f, true, 2f);
+            pArena = Soft("G_ArenaMotes", new Color(0.7f, 0.95f, 1f), 2.4f, true, 2f);
+            pHaloWarm = Soft("G_HaloWarm", new Color(1f, 0.62f, 0.32f), 0.4f, true, 2.6f);
 
             TextureKit.BeginBuild();
             var rock = TextureKit.Rock();
@@ -350,6 +365,29 @@ namespace FalseParadise.EditorTools
             RuinKit.Reflective(mIron);
             RuinKit.Reflective(mCrystal);
             Tex(mBark, 2.5f, 0.8f);
+            TextureKit.Apply(mCircleStone, TextureKit.Flagstone(), 0.35f, 1f);
+            TextureKit.Apply(mDoorMetal, TextureKit.WornMetal(), 1.1f, 0.6f);
+            RuinKit.Reflective(mDoorMetal);
+        }
+
+        /// <summary>Луч: FalseParadise/LightShaft — грани ребром и пересечение с полом растворяются (инвертированный Френель).</summary>
+        static Material ShaftMaterial(string name, Color c, float intensity)
+        {
+            string path = $"{MatDir}/{name}.mat";
+            var shader = Shader.Find("FalseParadise/LightShaft") ?? Shader.Find("FalseParadise/UnlitGlow");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.shader = shader;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            if (m.HasProperty("_Intensity")) m.SetFloat("_Intensity", intensity);
+            if (m.HasProperty("_EdgePower")) m.SetFloat("_EdgePower", 2f);
+            if (m.HasProperty("_SoftDistance")) m.SetFloat("_SoftDistance", 2.5f);
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         static Material Lit(string name, Color c, float emission = 0f, float smooth = 0.06f, float metallic = 0f)
@@ -597,7 +635,7 @@ namespace FalseParadise.EditorTools
             // Провал: каменная «труба» к небу и юбка под ней, закрывающая рваный край свода
             var rim = new LowPolyMesh(4); // 0 камень, 1 тёмный камень, 2 кора корней, 3 листья
             var r = new System.Random(91);
-            const int seg = 22;
+            const int seg = 36; // гуще кольцо — край провала не читается как многоугольник
             float[] ringH = { -1.2f, 1.5f, 4.5f, 8f };
             float[] ringR = { 0f, 0.6f, 1.3f, 2.4f }; // расширение кверху
             var pts = new Vector3[ringH.Length + 1, seg];
@@ -605,7 +643,7 @@ namespace FalseParadise.EditorTools
             {
                 float a = j * Mathf.PI * 2f / seg;
                 var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
-                float baseR = HoleR + 0.4f + Rr(r, -0.5f, 0.5f);
+                float baseR = HoleR + 0.4f + Rr(r, -0.5f, 0.5f) + (Mathf.PerlinNoise(j * 0.45f, 7.3f) - 0.5f) * 1.6f;
                 var e = new Vector3(HoleC.x, 0f, HoleC.y) + dir * baseR;
                 float ceil = CeilingH(e.x, e.z);
                 // Юбка: внешнее кольцо прижато к своду снизу
@@ -630,21 +668,44 @@ namespace FalseParadise.EditorTools
                 rim.Tri(sub, a, b, c, Out(mid));
                 rim.Tri(sub, a, c, d, Out(mid));
             }
-            // Несколько корней с листьями свисают в провал
-            for (int i = 0; i < 14; i++)
+            // Выступающие каменные карнизы: ломают ровный силуэт провала на фоне неба (эксперт)
+            for (int i = 0; i < 7; i++)
+            {
+                float a = (i + Rr(r, -0.3f, 0.3f)) * Mathf.PI * 2f / 7f;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                var e = hc + dir * (HoleR + 0.6f);
+                float y = CeilingH(e.x, e.z) + Rr(r, -0.9f, 0.5f);
+                float len = Rr(r, 2.2f, 3.8f);
+                var inward = (-dir + Vector3.down * Rr(r, 0.05f, 0.3f)).normalized;
+                var m = Matrix4x4.TRS(new Vector3(e.x, y, e.z), Quaternion.LookRotation(inward) * Quaternion.Euler(90f, 0f, Rr(r, -15f, 15f)),
+                    new Vector3(Rr(r, 0.9f, 1.4f), 1f, Rr(r, 0.4f, 0.6f)));
+                rim.Lathe(Hash(i, 3, 12) < 0.5f ? 0 : 1, m, new[] { -0.5f, len * 0.4f, len * 0.8f, len }, new[] { 1.1f, 0.95f, 0.55f, 0.1f }, 6, r, 0.3f);
+                // Капля-сталактит под краем карниза
+                var tip = new Vector3(e.x, y, e.z) + inward * len * 0.65f;
+                var dm = Matrix4x4.TRS(tip, Quaternion.Euler(180f + Rr(r, -8f, 8f), Rr(r, 0f, 360f), 0f), Vector3.one);
+                float dl = Rr(r, 0.8f, 1.8f);
+                rim.Lathe(1, dm, new[] { 0f, dl * 0.5f, dl }, new[] { 0.28f, 0.14f, 0f }, 5, r, 0.2f);
+            }
+            // Корни и лианы свисают в провал: толстые корни у края и длинные тонкие плети с листьями
+            for (int i = 0; i < 34; i++)
             {
                 float a = Rr(r, 0f, Mathf.PI * 2f);
-                float rad = HoleR + Rr(r, 0f, 0.6f);
+                float rad = HoleR + Rr(r, -0.3f, 0.9f);
                 float x = HoleC.x + Mathf.Cos(a) * rad, z = HoleC.y + Mathf.Sin(a) * rad;
-                float y = CeilingH(x, z) - 1f;
-                float len = Rr(r, 1.5f, 5f);
-                var m = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.Euler(180f + Rr(r, -10f, 10f), Rr(r, 0f, 360f), Rr(r, -10f, 10f)), Vector3.one);
-                rim.Lathe(2, m, new[] { 0f, len * 0.5f, len }, new[] { 0.07f, 0.05f, 0.015f }, 4, r, 0.2f);
-                for (float t = 0.5f; t < len; t += Rr(r, 0.35f, 0.7f))
+                float y = CeilingH(x, z) + Rr(r, -1.2f, 1.5f);
+                bool thick = i < 10;
+                float len = thick ? Rr(r, 1.2f, 3f) : Rr(r, 2.5f, 8f);
+                var m = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.Euler(180f + Rr(r, -12f, 12f), Rr(r, 0f, 360f), Rr(r, -12f, 12f)), Vector3.one);
+                if (thick)
+                    rim.Lathe(2, m, new[] { 0f, len * 0.4f, len }, new[] { 0.16f, 0.1f, 0.02f }, 5, r, 0.3f, false, 0.4f);
+                else
+                    rim.Lathe(2, m, new[] { 0f, len * 0.5f, len }, new[] { 0.045f, 0.035f, 0.012f }, 4, r, 0.2f, false, 0.3f);
+                float step = thick ? 0.9f : 0.45f;
+                for (float t = 0.4f; t < len; t += Rr(r, step * 0.7f, step * 1.3f))
                     rim.Box(3, m * Matrix4x4.TRS(new Vector3(0f, t, 0f), Quaternion.Euler(Rr(r, -50f, 50f), Rr(r, 0f, 360f), 0f), Vector3.one),
-                        new Vector3(0.14f, 0f, 0f), new Vector3(0.26f, 0.03f, 0.14f));
+                        new Vector3(0.14f, 0f, 0f), new Vector3(0.28f, 0.03f, 0.15f));
             }
-            var rimGo = Z.MeshObject("HoleRim", root, Register(rim.ToMesh("G_HoleRim")), new[] { mWallHigh, mCeiling, mWood, mGrass }, false);
+            var rimGo = Z.MeshObject("HoleRim", root, Register(rim.ToMesh("G_HoleRim")), new[] { mWallHigh, mCeiling, mWood, mGrassTip }, false);
             rimGo.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.TwoSided;
         }
 
@@ -931,10 +992,10 @@ namespace FalseParadise.EditorTools
                 var rm = m * Matrix4x4.TRS(new Vector3(0f, 0.5f, 0f), Quaternion.Euler(0f, i * 30f, 0f), Vector3.one);
                 lp.Box(2, rm, new Vector3(0f, 0.005f, CircleR * 0.6f), new Vector3(0.06f, 0.02f, CircleR * 0.75f));
             }
-            var go = Z.MeshObject("Platform", root, Register(lp.ToMesh("G_CirclePlatform")), new[] { mMarbleDark, mMarble, mRockDark }, true);
+            var go = Z.MeshObject("Platform", root, Register(lp.ToMesh("G_CirclePlatform")), new[] { mMarbleDark, mCircleStone, mRockDark }, true);
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
 
-            // Светящиеся руны: два кольца с разрывами и знаки между ними
+            // Светящиеся руны (пол платформы тёмный, ярко горят только руны и внешнее кольцо): два кольца с разрывами и знаки между ними
             var runes = new LowPolyMesh(1);
             var top = Matrix4x4.TRS(c + Vector3.up * 0.26f, Quaternion.identity, Vector3.one);
             for (int ring = 0; ring < 2; ring++)
@@ -948,6 +1009,13 @@ namespace FalseParadise.EditorTools
                     float len = 2f * Mathf.PI * rr / seg * 0.8f;
                     runes.Box(0, top * Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0f, a, 0f), Vector3.one), new Vector3(0f, 0f, rr), new Vector3(len, 0.03f, 0.08f));
                 }
+            }
+            // Внешнее кольцо по кромке верхней ступени — сплошное
+            for (int i = 0; i < 56; i++)
+            {
+                float rr = CircleR - 0.08f;
+                float len = 2f * Mathf.PI * rr / 56 * 1.02f;
+                runes.Box(0, top * Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0f, i * 360f / 56, 0f), Vector3.one), new Vector3(0f, 0f, rr), new Vector3(len, 0.03f, 0.1f));
             }
             for (int i = 0; i < 8; i++)
             {
@@ -965,7 +1033,7 @@ namespace FalseParadise.EditorTools
         {
             var root = new GameObject("MoonGarden").transform;
             root.SetParent(world, false);
-            var grass = new LowPolyMesh(1);
+            var grass = new LowPolyMesh(2); // 0 тёмные корни, 1 кончики
             var flowers = new GlowPointsMesh();
             // Пятно лунного света — вокруг круга, плюс редкие пучки по всей площади
             for (int i = 0; i < 520; i++)
@@ -976,11 +1044,11 @@ namespace FalseParadise.EditorTools
                 var q = (pool ? CircleC : Plaza.c) + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rr;
                 if (Sdf(q.x, q.y) > -1.2f || Vector2.Distance(q, CircleC) < CircleR + 0.4f || PathDist(q.x, q.y) < 1.2f && !pool) continue;
                 if (!pool && (R01() < 0.8f || Vector2.Distance(q, Camp.c) < Camp.r)) continue;
-                Tuft(grass, Ground(q, -0.05f), R(0.25f, pool ? 0.75f : 0.45f));
+                Tuft(grass, Ground(q, -0.05f), R(0.22f, pool ? 0.6f : 0.4f));
                 if (pool && R01() < 0.22f)
                     flowers.Point(Ground(q, R(0.25f, 0.5f)), R(0.03f, 0.06f), new Color(0.6f, 1f, 0.95f) * R(0.6f, 1f), R(0f, 360f));
             }
-            var go = Z.MeshObject("Grass", root, Register(grass.ToMesh("G_Grass")), new[] { mGrass }, false);
+            var go = Z.MeshObject("Grass", root, Register(grass.ToMesh("G_Grass")), new[] { mGrassRoot, mGrassTip }, false);
             go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             var fl = new GameObject("MoonFlowers");
@@ -989,7 +1057,7 @@ namespace FalseParadise.EditorTools
             fl.AddComponent<MeshRenderer>().sharedMaterial = gFlowers;
         }
 
-        /// <summary>Пучок травы: тонкие треугольные стебли, двусторонние.</summary>
+        /// <summary>Пучок травы: стебли из тёмного основания и светлого тонкого кончика, двусторонние.</summary>
         static void Tuft(LowPolyMesh lp, Vector3 p, float h)
         {
             int n = rng.Next(4, 8);
@@ -1000,13 +1068,20 @@ namespace FalseParadise.EditorTools
                 var fwd = new Vector3(-side.z, 0f, side.x);
                 var basePos = p + new Vector3(R(-0.15f, 0.15f), 0f, R(-0.15f, 0.15f));
                 float bh = h * R(0.6f, 1.2f);
-                float w = R(0.03f, 0.06f);
+                float w = R(0.025f, 0.05f);
                 var tip = basePos + Vector3.up * bh + fwd * R(-0.2f, 0.25f) * bh + side * R(-0.1f, 0.1f);
                 var a = basePos - side * w;
                 var b = basePos + side * w;
-                // Одна грань, материал без отсечения; нормаль почти вверх — трава светится как земля под луной
+                // Изгиб: середина стебля чуть отклонена, кончик тоньше и светлее, корень тёмный
+                float k = R(0.45f, 0.6f);
+                var bend = fwd * R(0f, 0.06f);
+                var ma = Vector3.Lerp(a, tip, k) + bend;
+                var mb = Vector3.Lerp(b, tip, k) + bend;
+                // Материал без отсечения; нормаль почти вверх — трава светится как земля под луной
                 var bn = (Vector3.up + fwd * 0.35f).normalized;
-                lp.TriSmooth(0, a, b, tip, bn, bn, bn);
+                lp.TriSmooth(0, a, b, mb, bn, bn, bn);
+                lp.TriSmooth(0, a, mb, ma, bn, bn, bn);
+                lp.TriSmooth(1, ma, mb, tip, bn, bn, bn);
             }
         }
 
@@ -1082,28 +1157,48 @@ namespace FalseParadise.EditorTools
                 var hinge = new GameObject(name).transform;
                 hinge.SetParent(root, false);
                 hinge.localPosition = new Vector3(side * GateHalf, floorTop + 0.1f, 0.15f);
-                var d = new LowPolyMesh(3); // 0 серебро, 1 тёмный металл, 2 руны
+                var d = new LowPolyMesh(4); // 0 серебро, 1 тёмный металл, 2 руны, 3 рама из кованого металла
                 float w = GateHalf, h = GateHeight;
                 float cx = -side * w * 0.5f;
                 d.Box(0, Matrix4x4.identity, new Vector3(cx, h * 0.5f, 0f), new Vector3(w, h, 0.45f));
-                // Рама и филёнки
+                // Объёмная рама: стойки и поперечины выступают на 12–18 см и ловят блики рун (эксперт)
                 d.Box(1, Matrix4x4.identity, new Vector3(cx, h * 0.5f, 0.24f), new Vector3(w - 0.5f, h - 0.5f, 0.05f));
                 d.Box(0, Matrix4x4.identity, new Vector3(cx, h * 0.5f, 0.28f), new Vector3(w - 1.1f, h - 1.1f, 0.05f));
+                for (int e = -1; e <= 1; e += 2)
+                {
+                    d.Box(3, Matrix4x4.identity, new Vector3(cx + e * (w * 0.5f - 0.18f), h * 0.5f, 0.3f), new Vector3(0.3f, h - 0.1f, 0.16f));
+                    d.Box(3, Matrix4x4.identity, new Vector3(cx, h * 0.5f + e * (h * 0.5f - 0.18f), 0.3f), new Vector3(w - 0.1f, 0.3f, 0.16f));
+                }
                 for (int k = 0; k < 4; k++)
-                    d.Box(1, Matrix4x4.identity, new Vector3(cx, 1.2f + k * 1.9f, 0.32f), new Vector3(w - 1.1f, 0.12f, 0.04f));
+                {
+                    float ry = 1.2f + k * 1.9f;
+                    d.Box(3, Matrix4x4.identity, new Vector3(cx, ry, 0.34f), new Vector3(w - 0.5f, 0.2f, 0.12f));
+                    // Заклёпки по поперечине
+                    for (int q = 0; q < 5; q++)
+                        d.Lathe(1, Matrix4x4.TRS(new Vector3(cx - (w - 0.9f) * 0.5f + q * (w - 0.9f) / 4f, ry, 0.4f), Quaternion.Euler(90f, 0f, 0f), Vector3.one),
+                            new[] { 0f, 0.04f, 0.07f }, new[] { 0.07f, 0.06f, 0f }, 6);
+                }
+                // Диагональные распорки в нижних филёнках
+                for (int k = 0; k < 2; k++)
+                {
+                    float y0 = 1.2f + k * 1.9f, y1 = y0 + 1.9f;
+                    float ang = Mathf.Atan2(y1 - y0, (w - 0.9f) * side) * Mathf.Rad2Deg;
+                    float diag = Mathf.Sqrt((y1 - y0) * (y1 - y0) + (w - 0.9f) * (w - 0.9f));
+                    d.Box(3, Matrix4x4.TRS(new Vector3(cx, (y0 + y1) * 0.5f, 0.32f), Quaternion.Euler(0f, 0f, ang), Vector3.one), Vector3.zero, new Vector3(diag, 0.14f, 0.08f));
+                }
                 // Половина древа: ствол у стыка створок, ветви наружу
                 float inner = -side * (w - 0.18f);
-                d.Box(2, Matrix4x4.identity, new Vector3(inner, h * 0.45f, 0.34f), new Vector3(0.1f, h * 0.7f, 0.04f));
+                d.Box(2, Matrix4x4.identity, new Vector3(inner, h * 0.45f, 0.42f), new Vector3(0.1f, h * 0.7f, 0.04f));
                 for (int k = 0; k < 5; k++)
                 {
                     float y = 2f + k * 1.05f;
-                    d.Box(2, Matrix4x4.TRS(new Vector3(inner - side * 0.7f, y + 0.35f, 0.34f), Quaternion.Euler(0f, 0f, side * 35f), Vector3.one), Vector3.zero, new Vector3(1.7f - k * 0.18f, 0.07f, 0.04f));
+                    d.Box(2, Matrix4x4.TRS(new Vector3(inner - side * 0.7f, y + 0.35f, 0.42f), Quaternion.Euler(0f, 0f, side * 35f), Vector3.one), Vector3.zero, new Vector3(1.7f - k * 0.18f, 0.07f, 0.04f));
                 }
                 // Кольцо-ручка
-                d.Lathe(1, Matrix4x4.TRS(new Vector3(inner - side * 0.6f, 3.6f, 0.42f), Quaternion.Euler(90f, 0f, 0f), Vector3.one), new[] { 0f, 0.08f }, new[] { 0.22f, 0.22f }, 8);
+                d.Lathe(1, Matrix4x4.TRS(new Vector3(inner - side * 0.6f, 3.6f, 0.46f), Quaternion.Euler(90f, 0f, 0f), Vector3.one), new[] { 0f, 0.08f }, new[] { 0.22f, 0.22f }, 8);
                 // Тыльная сторона тоже отделана — видна, когда створки открыты
                 d.Box(1, Matrix4x4.identity, new Vector3(cx, h * 0.5f, -0.24f), new Vector3(w - 0.5f, h - 0.5f, 0.05f));
-                Z.MeshObject("Leaf", hinge, Register(d.ToMesh($"G_{name}")), new[] { mSilver, mIron, mRune }, true);
+                Z.MeshObject("Leaf", hinge, Register(d.ToMesh($"G_{name}")), new[] { mDoorMetal, mIron, mRune, mDoorMetal }, true);
                 return hinge;
             }
             var left = Door("DoorLeft", -1);
@@ -1139,8 +1234,8 @@ namespace FalseParadise.EditorTools
         {
             var root = new GameObject("ElfCamp").transform;
             root.SetParent(world, false);
-            var lp = new LowPolyMesh(6); // 0 ткань, 1 бирюзовая ткань, 2 тёмная ткань, 3 светлое дерево, 4 дерево, 5 серебро
-            foreach (var t in TentPos) Tent(lp, Ground(t, -0.1f), Flat(Camp.c - t));
+            var lp = new LowPolyMesh(7); // 0 ткань, 1 бирюзовая ткань, 2 тёмная ткань, 3 светлое дерево, 4 дерево, 5 серебро, 6 тёплый свет
+            foreach (var t in TentPos) Tent(lp, root, Ground(t, -0.1f), Flat(Camp.c - t));
 
             // Скатки и ящики у палаток
             for (int i = 0; i < TentPos.Length; i++)
@@ -1179,7 +1274,7 @@ namespace FalseParadise.EditorTools
                 lp.Box(5, m, new Vector3(0f, 4.1f, 0.09f), new Vector3(0.45f, 0.45f, 0.02f));
             }
 
-            var go = Z.MeshObject("Props", root, Register(lp.ToMesh("G_CampProps")), new[] { mCloth, mClothTeal, mClothDark, mWoodPale, mWood, mSilver }, true);
+            var go = Z.MeshObject("Props", root, Register(lp.ToMesh("G_CampProps")), new[] { mCloth, mClothTeal, mClothDark, mWoodPale, mWood, mSilver, mTentGlow }, true);
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
 
             BuildBrazier(root);
@@ -1190,7 +1285,8 @@ namespace FalseParadise.EditorTools
                 new Vector2(-6f, 7f), new Vector2(-17f, 5.5f), new Vector2(-12f, 20.5f), new Vector2(-2f, 13f),
                 new Vector2(-24f, 4.5f), new Vector2(-24f, -4.5f), new Vector2(-35f, 2.6f), new Vector2(17f, 9f), new Vector2(17f, -9.5f),
             };
-            foreach (var s in lanternSpots) Lantern(root, Ground(s));
+            // В жилой части лагеря фонари тёплые (живой огонь), по краям и у руин — холодные кристаллы (эксперт)
+            for (int i = 0; i < lanternSpots.Length; i++) Lantern(root, Ground(lanternSpots[i]), i == 1 || i == 2);
 
             // Светлячки над лагерем
             var motes = new GameObject("Motes");
@@ -1201,20 +1297,58 @@ namespace FalseParadise.EditorTools
             Z.ShapeBox(ps, new Vector3(16f, 4f, 16f));
         }
 
-        /// <summary>Эльфийский шатёр: восьмигранный конус, бирюзовый пояс, тёмный вход, шест с вымпелом.</summary>
-        static void Tent(LowPolyMesh lp, Vector3 p, Vector3 front)
+        /// <summary>
+        /// Эльфийский шатёр: ткань натянута на 8 шестов и провисает между ними (складки), подол волной,
+        /// бирюзовые пояса, деревянный шест над верхом с вымпелом, полог приоткрыт — внутри горит лампа.
+        /// </summary>
+        static void Tent(LowPolyMesh lp, Transform parent, Vector3 p, Vector3 front)
         {
-            var m = Matrix4x4.TRS(p, Quaternion.LookRotation(front) * Quaternion.Euler(0f, 22.5f, 0f), Vector3.one);
+            var rot = Quaternion.LookRotation(front);
             float H = R(3.2f, 3.8f), Rb = R(2f, 2.4f);
-            lp.Lathe(0, m, new[] { 0f, 0.4f, H * 0.82f, H }, new[] { Rb, Rb * 0.95f, 0.22f, 0f }, 8);
-            // Бирюзовый пояс поверх конуса: радиус ткани на этой высоте + 4 см
-            float RadAt(float y) => Mathf.Lerp(Rb * 0.95f, 0.22f, (y - 0.4f) / (H * 0.82f - 0.4f)) + 0.04f;
-            lp.Lathe(1, m, new[] { 0.95f, 1.25f }, new[] { RadAt(0.95f), RadAt(1.25f) }, 8);
-            lp.Lathe(1, m, new[] { 0f, 0.4f }, new[] { Rb + 0.03f, Rb * 0.95f + 0.03f }, 8);
-            var fm = Matrix4x4.TRS(p, Quaternion.LookRotation(front), Vector3.one);
-            lp.Box(2, fm * Matrix4x4.TRS(new Vector3(0f, 0.85f, Rb * 0.82f), Quaternion.Euler(-28f, 0f, 0f), Vector3.one), Vector3.zero, new Vector3(1.1f, 1.7f, 0.05f));
-            lp.Lathe(3, m, new[] { H - 0.1f, H + 0.9f }, new[] { 0.05f, 0.03f }, 4);
-            lp.Box(1, m, new Vector3(0.35f, H + 0.7f, 0f), new Vector3(0.7f, 0.22f, 0.02f));
+            const int poles = 8, seg = poles * 2;
+            float[] hs = { 0f, 0.4f, 0.95f, 1.25f, H * 0.5f, H * 0.82f };
+            float RadAt(float y) => y <= 0.4f ? Mathf.Lerp(Rb, Rb * 0.95f, y / 0.4f) : Mathf.Lerp(Rb * 0.95f, 0.22f, (y - 0.4f) / (H * 0.82f - 0.4f));
+            var ring = new Vector3[hs.Length, seg];
+            for (int k = 0; k < hs.Length; k++)
+            for (int j = 0; j < seg; j++)
+            {
+                float a = j * Mathf.PI * 2f / seg;
+                bool between = (j & 1) == 1;
+                // Между шестами ткань провисает внутрь, внизу подол поднят волной
+                float sag = between && k > 0 && k < hs.Length - 1 ? 0.88f + R(-0.02f, 0.02f) : 1f;
+                float y = hs[k] + (between && k == 0 ? 0.14f : 0f) + (k > 0 ? R(-0.03f, 0.03f) : 0f);
+                ring[k, j] = p + rot * new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * RadAt(hs[k]) * sag + Vector3.up * y;
+            }
+            var apex = p + Vector3.up * H;
+            for (int k = 0; k < hs.Length; k++)
+            for (int j = 0; j < seg; j++)
+            {
+                int j1 = (j + 1) % seg;
+                float a = (j + 0.5f) * Mathf.PI * 2f / seg;
+                var outDir = rot * new Vector3(Mathf.Sin(a), 0.4f, Mathf.Cos(a));
+                // Вход (передние две грани в нижнем ярусе) оставляем открытым — там полог и свет
+                bool door = (j == 0 || j == seg - 1) && k < 3;
+                if (door) continue;
+                int sub = k == 0 || k == 2 ? 1 : 0;
+                if (k == hs.Length - 1)
+                {
+                    lp.Tri(sub, ring[k, j], ring[k, j1], apex, outDir);
+                    continue;
+                }
+                lp.Tri(sub, ring[k, j], ring[k, j1], ring[k + 1, j1], outDir);
+                lp.Tri(sub, ring[k, j], ring[k + 1, j1], ring[k + 1, j], outDir);
+            }
+            // Светящийся проём: тёплая стенка внутри, тёмный полог откинут вбок
+            var fm = Matrix4x4.TRS(p, rot, Vector3.one);
+            lp.Box(6, fm, new Vector3(0f, 0.8f, Rb * 0.55f), new Vector3(1.2f, 1.6f, 0.04f));
+            lp.Box(2, fm * Matrix4x4.TRS(new Vector3(0.75f, 0.85f, Rb * 0.9f), Quaternion.Euler(-12f, -55f, 0f), Vector3.one), Vector3.zero, new Vector3(0.7f, 1.6f, 0.04f));
+            // Шест над верхом и вымпел
+            lp.Lathe(4, fm, new[] { H - 0.4f, H + 1.3f }, new[] { 0.06f, 0.035f }, 5);
+            lp.Lathe(5, fm, new[] { H + 1.3f, H + 1.42f }, new[] { 0.06f, 0f }, 5);
+            lp.Box(1, fm, new Vector3(0.38f, H + 1.05f, 0f), new Vector3(0.75f, 0.22f, 0.02f));
+            // Лампа внутри: слабый тёплый свет из входа без теней
+            var l = Z.PointLight(parent, "TentLamp", p + rot * new Vector3(0f, 0.9f, Rb * 0.95f), new Color(1f, 0.64f, 0.36f), 5.5f, 2.2f);
+            l.shadows = LightShadows.None;
         }
 
         static void Bow(LowPolyMesh lp, Matrix4x4 m, int woodSub, int stringSub)
@@ -1270,7 +1404,7 @@ namespace FalseParadise.EditorTools
         static Mesh lanternMesh;
 
         /// <summary>Шест с подвешенным кристальным фонарём: бирюзовый свет без теней.</summary>
-        static void Lantern(Transform parent, Vector3 pos)
+        static void Lantern(Transform parent, Vector3 pos, bool warm = false)
         {
             if (lanternMesh == null || !generated.Contains(lanternMesh))
             {
@@ -1286,19 +1420,28 @@ namespace FalseParadise.EditorTools
             t.SetParent(parent, false);
             t.position = pos;
             t.rotation = Quaternion.Euler(0f, R(0f, 360f), 0f);
-            Z.MeshObject("Mesh", t, lanternMesh, new[] { mWoodPale, mSilver, mRune }, false);
+            Z.MeshObject("Mesh", t, lanternMesh, new[] { mWoodPale, mSilver, warm ? mWarmGlow : mRune }, false);
             var col = t.gameObject.AddComponent<CapsuleCollider>();
             col.center = new Vector3(0f, 1.2f, 0f);
             col.radius = 0.12f;
             col.height = 2.6f;
             var glow = t.TransformPoint(new Vector3(0.55f, 2.25f, 0f));
-            var l = Z.PointLight(t, "Light", glow, new Color(0.38f, 1f, 0.88f), 9f, 4.5f);
+            var l = warm
+                ? Z.PointLight(t, "Light", glow, new Color(1f, 0.64f, 0.38f), 9f, 5f)
+                : Z.PointLight(t, "Light", glow, new Color(0.38f, 1f, 0.88f), 9f, 4.5f);
             l.shadows = LightShadows.None;
+            if (warm)
+            {
+                var flick = l.gameObject.AddComponent<TorchFlicker>();
+                SetFloat(flick, "baseIntensity", 5f);
+                SetFloat(flick, "flickerAmount", 0.6f);
+            }
             var halo = new GameObject("Halo");
             halo.transform.SetParent(t, false);
             halo.transform.position = glow;
-            var ps = Z.Particles(halo, pHalo, 4f, 1.2f, 1.6f, 0f, 0.02f, 0.9f, 1.3f,
-                new Color(0.4f, 1f, 0.9f, 0.3f), new Color(0.4f, 1f, 0.9f, 0.24f), 0f, 8, Z.FlatCurve(), 0f);
+            var hc = warm ? new Color(1f, 0.7f, 0.4f, 0.3f) : new Color(0.4f, 1f, 0.9f, 0.3f);
+            var ps = Z.Particles(halo, warm ? pHaloWarm : pHalo, 4f, 1.2f, 1.6f, 0f, 0.02f, 0.9f, 1.3f,
+                hc, new Color(hc.r, hc.g, hc.b, 0.24f), 0f, 8, Z.FlatCurve(), 0f);
             Z.ShapeSphere(ps, 0.05f);
         }
 
@@ -1777,21 +1920,24 @@ namespace FalseParadise.EditorTools
 
         static void BuildAtmosphere(Camera cam)
         {
-            var fog = new Color(0.03f, 0.05f, 0.07f);
+            var fog = new Color(0.04f, 0.065f, 0.1f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.22f, 0.27f, 0.37f);
-            RenderSettings.ambientEquatorColor = new Color(0.15f, 0.17f, 0.22f);
-            RenderSettings.ambientGroundColor = new Color(0.08f, 0.095f, 0.11f);
+            // Ни одного чисто чёрного угла: снизу тёмный сине-зелёный (#0A1622 и светлее, эксперт)
+            RenderSettings.ambientEquatorColor = new Color(0.14f, 0.18f, 0.22f);
+            RenderSettings.ambientGroundColor = new Color(0.07f, 0.1f, 0.13f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.Exponential;
+            // ExponentialSquared: вблизи воздух чистый, дальние руины уходят в тёмно-синюю дымку —
+            // пещера кажется больше, стык стен с «небом» прячется
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogDensity = 0.019f;
             RenderSettings.fogColor = fog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.015f, 0.03f, 0.06f);
+            cam.backgroundColor = fog;
             cam.farClipPlane = 250f;
 
             // Луна: единственный направленный свет, тени считает свод — светлое пятно только под провалом
@@ -1811,9 +1957,10 @@ namespace FalseParadise.EditorTools
             // Отражённый от пятна света холодный подсвет и общий заполняющий свет площади
             var fill = new GameObject("BounceLights").transform;
             var pool = Ground(CircleC, 1.2f);
-            Z.PointLight(fill, "PoolBounce", pool, new Color(0.62f, 0.74f, 1f), 16f, 7f).shadows = LightShadows.None;
+            Z.PointLight(fill, "PoolBounce", pool, new Color(0.62f, 0.74f, 1f), 16f, 3.5f).shadows = LightShadows.None;
             Z.PointLight(fill, "PlazaFill", Ground(Plaza.c, 9f), new Color(0.56f, 0.62f, 0.76f), 38f, 34f).shadows = LightShadows.None;
             Z.PointLight(fill, "TunnelFill", Ground(new Vector2(-30f, 0f), 3f), new Color(0.5f, 0.58f, 0.8f), 20f, 8f).shadows = LightShadows.None;
+            BuildTunnelCrystals(fill);
 
             // Лунный луч: скрещённые плоскости вдоль направления света + пыль
             var fwd = MoonRot * Vector3.forward;
@@ -1826,7 +1973,7 @@ namespace FalseParadise.EditorTools
             float len = (holeY - Height(CircleC.x, CircleC.y)) / Mathf.Max(0.3f, -fwd.y) + up;
             var beam = new GameObject("Beam");
             beam.transform.SetParent(shaft, false);
-            beam.AddComponent<MeshFilter>().sharedMesh = Register(Z.ShaftMesh("G_MoonShaft", HoleR * 0.85f, HoleR * 1.05f, len, 7, 0.16f));
+            beam.AddComponent<MeshFilter>().sharedMesh = Register(ShaftMesh("G_MoonShaft", HoleR * 0.8f, HoleR * 1.1f, len, 9, 0.2f));
             var mr = beam.AddComponent<MeshRenderer>();
             mr.sharedMaterial = gShaft;
             mr.shadowCastingMode = ShadowCastingMode.Off;
@@ -1836,6 +1983,30 @@ namespace FalseParadise.EditorTools
             var ps = Z.Particles(dust, pDust, 26f, 5f, 8f, 0.02f, 0.08f, 0.02f, 0.05f,
                 new Color(0.85f, 0.92f, 1f, 0.85f), new Color(0.9f, 0.97f, 1f, 0.6f), -0.002f, 260, Z.FadeCurve(), 0.15f);
             Z.ShapeBox(ps, new Vector3(HoleR * 1.6f, len * 0.85f, HoleR * 1.6f));
+
+            // Холодный прожектор внутри луча: пятно на круге и Страже (эксперт). Тени даёт луна, у прожектора их нет.
+            var spot = new GameObject("MoonSpot").AddComponent<Light>();
+            spot.transform.SetParent(shaft, false);
+            var circleTop = Ground(CircleC, 0.3f);
+            var spotPos = circleTop - fwd * (len - up + 2f);
+            spot.transform.position = spotPos;
+            spot.transform.rotation = Quaternion.LookRotation(circleTop - spotPos);
+            spot.type = LightType.Spot;
+            spot.color = new Color(0.68f, 0.8f, 1f);
+            float dist = Vector3.Distance(spotPos, circleTop);
+            spot.range = dist + 8f;
+            spot.spotAngle = 2f * Mathf.Atan((CircleR + 1.5f) / dist) * Mathf.Rad2Deg;
+            spot.innerSpotAngle = spot.spotAngle * 0.55f;
+            spot.intensity = 40f * dist * dist / 55f; // затухание ~1/r²
+            spot.shadows = LightShadows.None;
+
+            // Медленные светящиеся пылинки: поднимаются от круга, дают масштаб высоте свода
+            var arena = new GameObject("ArenaMotes");
+            arena.transform.SetParent(shaft.parent, false);
+            arena.transform.position = Ground(CircleC, 0.6f);
+            var aps = Z.Particles(arena, pArena, 5f, 10f, 16f, 0.05f, 0.15f, 0.035f, 0.075f,
+                new Color(0.6f, 0.95f, 1f, 0.9f), new Color(0.85f, 0.95f, 1f, 0.6f), -0.012f, 90, Z.FadeCurve(), 0.12f);
+            Z.ShapeBox(aps, new Vector3(CircleR * 1.8f, 0.4f, CircleR * 1.8f));
 
             // Слоистая дымка: холодная на площади, бирюзовая в лагере, светящаяся в лунном луче
             var haze = new GameObject("Haze").transform;
@@ -1862,6 +2033,81 @@ namespace FalseParadise.EditorTools
             volume.isGlobal = true;
             volume.sharedProfile = PostProfile();
             DynamicGI.UpdateEnvironment();
+        }
+
+        /// <summary>
+        /// Луч из скрещённых плоскостей: по ширине плавный спад к краям, по высоте — яркий у неба и
+        /// растворяется в ноль у пола (вертикальный градиент), чтобы не было твёрдого конуса.
+        /// </summary>
+        static Mesh ShaftMesh(string name, float topR, float botR, float height, int planes, float alpha)
+        {
+            float[] cols = { -1f, -0.6f, -0.25f, 0f, 0.25f, 0.6f, 1f };
+            float[] colA = { 0f, 0.22f, 0.65f, 0.8f, 0.65f, 0.22f, 0f };
+            float[] rows = { 0f, 0.1f, 0.35f, 0.6f, 0.82f, 1f };
+            float[] rowA = { 0f, 1f, 0.8f, 0.5f, 0.2f, 0f };
+            var v = new List<Vector3>();
+            var c = new List<Color>();
+            var t = new List<int>();
+            for (int p = 0; p < planes; p++)
+            {
+                float a = p * Mathf.PI / planes;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                int start = v.Count;
+                for (int r = 0; r < rows.Length; r++)
+                {
+                    float R = Mathf.Lerp(topR, botR, rows[r]);
+                    for (int col = 0; col < cols.Length; col++)
+                    {
+                        v.Add(dir * (cols[col] * R) + Vector3.down * (rows[r] * height));
+                        c.Add(new Color(1f, 1f, 1f, colA[col] * rowA[r] * alpha));
+                    }
+                }
+                int n = cols.Length;
+                for (int r = 0; r < rows.Length - 1; r++)
+                for (int col = 0; col < n - 1; col++)
+                {
+                    int i0 = start + r * n + col, i1 = i0 + 1, i2 = i0 + n, i3 = i0 + n + 1;
+                    t.Add(i0); t.Add(i2); t.Add(i1);
+                    t.Add(i1); t.Add(i2); t.Add(i3);
+                }
+            }
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(v);
+            mesh.SetColors(c);
+            mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        /// <summary>Тоннель от логова: тусклые бирюзовые кристаллы у стен ведут взгляд к выходу на площадь.</summary>
+        static void BuildTunnelCrystals(Transform parent)
+        {
+            var root = new GameObject("TunnelCrystals").transform;
+            root.SetParent(parent, false);
+            var lp = new LowPolyMesh(1);
+            var spots = new[] { new Vector2(-39f, -1f), new Vector2(-32f, 1f), new Vector2(-26f, -1f), new Vector2(-20f, 1f) };
+            foreach (var s in spots)
+            {
+                // Ищем стену поперёк тоннеля в сторону side
+                float z = 0f;
+                while (z * s.y < 7f && Sdf(s.x, z) < -0.7f) z += s.y * 0.25f;
+                var p = Ground(new Vector2(s.x, z), -0.1f);
+                var inward = new Vector3(0f, 0f, -s.y);
+                // Небольшие друзы у основания стены
+                int n = rng.Next(3, 6);
+                for (int i = 0; i < n; i++)
+                {
+                    float h = R(0.25f, 0.8f) * (i == 0 ? 1.4f : 1f);
+                    float w = h * R(0.14f, 0.22f);
+                    var axis = (Vector3.up + inward * R(0.3f, 0.9f) + new Vector3(R(-0.5f, 0.5f), 0f, R(-0.5f, 0.5f))).normalized;
+                    var m = Matrix4x4.TRS(p + new Vector3(R(-0.5f, 0.5f), -0.08f, R(-0.3f, 0.3f)), Quaternion.FromToRotation(Vector3.up, axis), Vector3.one);
+                    lp.Lathe(0, m, new[] { 0f, h * 0.75f, h }, new[] { w, w, 0f }, 6);
+                }
+                var l = Z.PointLight(root, "CrystalLight", p + inward * 0.8f + Vector3.up * 0.8f, new Color(0.32f, 0.92f, 0.86f), 6.5f, 1.8f);
+                l.shadows = LightShadows.None;
+            }
+            var go = Z.MeshObject("Crystals", root, Register(lp.ToMesh("G_TunnelCrystals")), new[] { mCrystalDim }, false);
+            go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
 
         static VolumeProfile PostProfile()

@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: G_Shaft
-  m_Shader: {fileID: 4800000, guid: 0792681cc145b3b41ae887dc788d1939, type: 3}
+  m_Shader: {fileID: 4800000, guid: ac3f5652488614742aee0d82b1d626de, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,7 +25,9 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Intensity: 0.3
+    - _EdgePower: 2
+    - _Intensity: 0.42
+    - _SoftDistance: 2.5
     m_Colors:
     - _BaseColor: {r: 0.7, g: 0.82, b: 1, a: 1}
   m_BuildTextureStacks: []
