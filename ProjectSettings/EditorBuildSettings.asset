@@ -6,14 +6,26 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Game/Scenes/Zone2_OgreVillage.unity
-    guid: dc66354357b113a49a28824e201a776d
+    path: Assets/_Game/Scenes/Zone1_Lair.unity
+    guid: 45f9192ed07303e4d9eb013e5746fe66
   - enabled: 1
     path: Assets/_Game/Scenes/Gate_Elven.unity
     guid: bb4fabc6f983c1a489e1a77d6877da82
   - enabled: 1
-    path: Assets/_Game/Scenes/Zone1_Lair.unity
-    guid: 45f9192ed07303e4d9eb013e5746fe66
+    path: Assets/_Game/Scenes/Zone2_OgreVillage.unity
+    guid: dc66354357b113a49a28824e201a776d
+  - enabled: 1
+    path: Assets/_Game/Scenes/Zone1_GoblinLair.unity
+    guid: 832b57ba63dd58247b127419dc660117
+  - enabled: 1
+    path: Assets/_Game/Scenes/Zone2_ElvenGate.unity
+    guid: 3227deaed602a3a439d0967204bd9c1a
+  - enabled: 1
+    path: Assets/_Game/Scenes/Zone3_OgreVillage.unity
+    guid: 50995b552fd30ac47bc21a38170376f6
+  - enabled: 1
+    path: Assets/_Game/Scenes/Paradise_Test.unity
+    guid: 39fae7938f3270d4e94f6f1f5611695f
   - enabled: 1
     path: Assets/_Game/Scenes/Sandbox_Nariman.unity
     guid: ac25448398edfd24596f7adda877076a
