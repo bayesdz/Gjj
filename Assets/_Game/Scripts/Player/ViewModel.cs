@@ -11,10 +11,10 @@ namespace FalseParadise
     {
         [SerializeField] FirstPersonController controller;
         [SerializeField] PlayerMelee melee;
-        [SerializeField] float swayAmount = 0.0012f;
-        [SerializeField] float swayMax = 0.045f;
-        [SerializeField] float swaySmooth = 9f;
-        [SerializeField] float bobAmount = 0.014f;
+        [SerializeField] float swayAmount = 0.0022f;
+        [SerializeField] float swayMax = 0.07f;
+        [SerializeField] float swaySmooth = 6.5f;
+        [SerializeField] float bobAmount = 0.022f;
         [SerializeField] float swingTime = 0.3f;
 
         Vector3 basePos;
@@ -57,7 +57,8 @@ namespace FalseParadise
             var swingRot = Quaternion.Euler(-35f * s, -40f * s, -25f * s);
 
             transform.localPosition = basePos + new Vector3(-sway.x, -sway.y, 0f) + bob + swingPos;
-            transform.localRotation = baseRot * Quaternion.Euler(sway.y * 60f, -sway.x * 60f, sway.x * 30f) * swingRot;
+            float bobRoll = Mathf.Sin(bobPhase) * 2.2f * move; // лёгкий крен в такт шагу
+            transform.localRotation = baseRot * Quaternion.Euler(sway.y * 70f, -sway.x * 70f, sway.x * 35f + bobRoll) * swingRot;
         }
     }
 }

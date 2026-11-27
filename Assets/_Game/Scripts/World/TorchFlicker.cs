@@ -8,7 +8,7 @@ namespace FalseParadise
     {
         [SerializeField] float baseIntensity = 3f;
         [SerializeField] float flickerAmount = 0.6f;
-        [SerializeField] float speed = 6f;
+        [SerializeField] float speed = 4.5f;
         [Tooltip("Дрожание позиции света, м: тени от факела «живут»")]
         [SerializeField] float jitter = 0.035f;
 
@@ -27,9 +27,11 @@ namespace FalseParadise
 
         void Update()
         {
-            float n = Mathf.PerlinNoise(seed, Time.time * speed) - 0.5f;
-            lightSource.intensity = baseIntensity + n * 2f * flickerAmount;
-            lightSource.range = baseRange * (1f + n * 0.08f);
+            // Две октавы: медленное «дыхание» + быстрое потрескивание
+            float n = (Mathf.PerlinNoise(seed, Time.time * speed) - 0.5f) * 0.75f
+                    + (Mathf.PerlinNoise(seed + 5f, Time.time * speed * 3.1f) - 0.5f) * 0.45f;
+            lightSource.intensity = baseIntensity + n * 2.4f * flickerAmount;
+            lightSource.range = baseRange * (1f + n * 0.14f);
             if (jitter > 0f)
             {
                 float t = Time.time * speed * 1.3f;

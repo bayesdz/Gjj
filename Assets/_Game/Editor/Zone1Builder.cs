@@ -282,22 +282,22 @@ namespace FalseParadise.EditorTools
         static void CreateMaterials()
         {
             // Тёплый песчаник: пол светлее, свод темнее (референс: тёплая пещера в свете факелов)
-            mFloor = Lit("Z1_Floor", new Color(0.66f, 0.53f, 0.39f));
-            mFloorAlt = Lit("Z1_FloorGravel", new Color(0.55f, 0.43f, 0.31f));
-            mWall = Lit("Z1_Wall", new Color(0.72f, 0.58f, 0.43f));
-            mWallHigh = Lit("Z1_WallHigh", new Color(0.6f, 0.48f, 0.36f));
+            mFloor = Lit("Z1_Floor", new Color(0.66f, 0.53f, 0.39f), 0f, 0.42f);
+            mFloorAlt = Lit("Z1_FloorGravel", new Color(0.55f, 0.43f, 0.31f), 0f, 0.3f);
+            mWall = Lit("Z1_Wall", new Color(0.72f, 0.58f, 0.43f), 0f, 0.36f);
+            mWallHigh = Lit("Z1_WallHigh", new Color(0.6f, 0.48f, 0.36f), 0f, 0.18f);
             mCeiling = Lit("Z1_Ceiling", new Color(0.52f, 0.42f, 0.32f));
             mChasm = Lit("Z1_ChasmRock", new Color(0.32f, 0.13f, 0.08f));
-            mRock = Lit("Z1_Rock", new Color(0.76f, 0.62f, 0.47f));
-            mRockDark = Lit("Z1_RockDark", new Color(0.5f, 0.4f, 0.3f));
+            mRock = Lit("Z1_Rock", new Color(0.76f, 0.62f, 0.47f), 0f, 0.4f);
+            mRockDark = Lit("Z1_RockDark", new Color(0.5f, 0.4f, 0.3f), 0f, 0.45f);
 
             mWood = Lit("Z1_Wood", new Color(0.46f, 0.31f, 0.19f));
             mWoodDark = Lit("Z1_WoodDark", new Color(0.3f, 0.2f, 0.13f));
             mWoodPale = Lit("Z1_WoodPale", new Color(0.68f, 0.52f, 0.36f));
             mIron = Lit("Z1_Iron", new Color(0.2f, 0.19f, 0.2f), 0f, 0.45f, 0.6f);
-            mFlame = Emissive("Z1_Flame", new Color(1f, 0.5f, 0.12f), 1.7f);
+            mFlame = Emissive("Z1_Flame", new Color(1f, 0.42f, 0.1f), 1.35f);
             mBone = Lit("Z1_Bone", new Color(0.74f, 0.68f, 0.57f));
-            mHide = Lit("Z1_HideDark", new Color(0.24f, 0.16f, 0.12f));
+            mHide = Lit("Z1_HideDark", new Color(0.34f, 0.24f, 0.18f));
             mHideWarm = Lit("Z1_HideWarm", new Color(0.62f, 0.42f, 0.26f));
             mClothRed = Lit("Z1_ClothRed", new Color(0.72f, 0.28f, 0.22f));
             mClothBlue = Lit("Z1_ClothBlue", new Color(0.28f, 0.44f, 0.7f));
@@ -318,7 +318,7 @@ namespace FalseParadise.EditorTools
             mShiningWing = Emissive("Z1_ShiningWing", new Color(1f, 0.64f, 0.26f), 1.9f);
 
             pSmoke = Soft("Z1_Smoke", new Color(0.3f, 0.25f, 0.2f, 0.14f), 1f, false, 2.6f);
-            pFire = Soft("Z1_Fire", new Color(1f, 0.45f, 0.12f), 2.2f, true, 1.4f);
+            pFire = Soft("Z1_Fire", new Color(1f, 0.4f, 0.1f), 1.45f, true, 1.6f);
             pHalo = Soft("Z1_Halo", new Color(1f, 0.45f, 0.14f), 0.45f, true, 2.6f);
             pEmbers = Soft("Z1_Embers", new Color(1f, 0.55f, 0.18f), 4f, true, 2f);
             pDust = Soft("Z1_Dust", new Color(1f, 0.8f, 0.55f), 1.2f, true, 2f);
@@ -333,7 +333,7 @@ namespace FalseParadise.EditorTools
             // Лужи: тёмные и очень гладкие — в них бликуют факелы
             mPuddle = Lit("Z1_Puddle", new Color(0.1f, 0.085f, 0.075f), 0f, 0.94f, 0f);
             // Холодный луч света сквозь трещину в своде
-            gShaft = Glow("Z1_Shaft", new Color(0.72f, 0.84f, 1f), 0.32f);
+            gShaft = ShaftMaterial("Z1_Shaft", new Color(0.72f, 0.84f, 1f), 0.22f);
 
             // Фактура: процедурные текстуры 1024 px (TextureKit), мировые UV (LowPolyMesh.BoxUVs)
             TextureKit.BeginBuild();
@@ -341,8 +341,8 @@ namespace FalseParadise.EditorTools
             rockTex = rock.albedo;
             rockNormal = rock.normal;
             // Древний зал: блоки кладки и плиты пола
-            mBlock = Lit("Z1_Block", new Color(0.7f, 0.57f, 0.43f));
-            mFlag = Lit("Z1_HallFloor", new Color(0.6f, 0.49f, 0.37f), 0f, 0.12f);
+            mBlock = Lit("Z1_Block", new Color(0.7f, 0.57f, 0.43f), 0f, 0.32f);
+            mFlag = Lit("Z1_HallFloor", new Color(0.6f, 0.49f, 0.37f), 0f, 0.5f);
             Textured(mBlock, new Vector2(2.2f, 2.2f), 1.4f);
             TextureKit.Apply(mFlag, TextureKit.Flagstone(), 0.5f, 0.8f);
             var planks = TextureKit.Planks();
@@ -426,6 +426,26 @@ namespace FalseParadise.EditorTools
             var hdr = new Color(c.r * intensity, c.g * intensity, c.b * intensity, 1f);
             m.color = hdr;
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", hdr);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        /// <summary>Луч света: FalseParadise/LightShaft — плоскости ребром и пересечения с полом растворяются.</summary>
+        static Material ShaftMaterial(string name, Color c, float intensity)
+        {
+            string path = $"{MatDir}/{name}.mat";
+            var shader = Shader.Find("FalseParadise/LightShaft") ?? Shader.Find("FalseParadise/UnlitGlow");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.shader = shader;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            if (m.HasProperty("_Intensity")) m.SetFloat("_Intensity", intensity);
+            if (m.HasProperty("_EdgePower")) m.SetFloat("_EdgePower", 1.6f);
+            if (m.HasProperty("_SoftDistance")) m.SetFloat("_SoftDistance", 1.4f);
             EditorUtility.SetDirty(m);
             return m;
         }
@@ -741,7 +761,14 @@ namespace FalseParadise.EditorTools
                 {
                     var lp = Chunk(solid, 5, x, z);
                     Stalagmite(lp, p, R(1.4f, 5f));
-                    int kids = rng.Next(0, 3);
+                    // Камни у основания
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var b = p + new Vector3(R(-1.2f, 1.2f), 0f, R(-1.2f, 1.2f));
+                        b.y = Height(b.x, b.z);
+                        Boulder(lp, b, R(0.35f, 0.8f));
+                    }
+                    int kids = rng.Next(2, 4);
                     for (int k = 0; k < kids; k++)
                     {
                         var q = p + new Vector3(R(-1.6f, 1.6f), 0f, R(-1.6f, 1.6f));
@@ -757,7 +784,8 @@ namespace FalseParadise.EditorTools
                     var lp = Chunk(hang, 4, x, z);
                     float len = path < 4f ? R(0.6f, 2.4f) : R(1.2f, 5.5f);
                     Stalactite(lp, x, z, len);
-                    if (R01() < 0.5f) Stalactite(lp, x + R(-1f, 1f), z + R(-1f, 1f), len * R(0.3f, 0.6f));
+                    int extra = rng.Next(1, 3);
+                    for (int k = 0; k < extra; k++) Stalactite(lp, x + R(-1.2f, 1.2f), z + R(-1.2f, 1.2f), len * R(0.3f, 0.7f));
                 }
 
                 // Реквизит гоблинов у стен
@@ -960,7 +988,7 @@ namespace FalseParadise.EditorTools
         static void Stalagmite(LowPolyMesh lp, Vector3 p, float h)
         {
             float w = h * R(0.17f, 0.25f);
-            var m = Matrix4x4.TRS(p + Vector3.down * 0.3f, Quaternion.Euler(R(-7f, 7f), R(0f, 360f), R(-7f, 7f)), Vector3.one);
+            var m = Matrix4x4.TRS(p + Vector3.down * 0.3f, Quaternion.Euler(R(-14f, 14f), R(0f, 360f), R(-14f, 14f)), Vector3.one);
             lp.Lathe(R01() < 0.6f ? 0 : 1, m,
                 new[] { 0f, h * 0.3f, h * 0.65f, h },
                 new[] { w, w * 0.7f, w * 0.38f, 0f },
@@ -1464,6 +1492,90 @@ namespace FalseParadise.EditorTools
             burrow.position = Ground(BurrowPos, -0.2f);
             burrow.rotation = Quaternion.LookRotation(Flat(Warren.c - BurrowPos));
             MeshObject("Mesh", burrow, Register(BurrowMesh()), new[] { mRock, mBlack, mRockDark }, true);
+            BuildCampLife(root);
+        }
+
+        /// <summary>
+        /// Живой быт лагеря: котелок на камнях у костра, миски, мешки, тряпки, мотки верёвки, ящики,
+        /// вёдра и поленья. Одинаково в иллюзии и правде — гоблины здесь живут, и это работает на твист.
+        /// </summary>
+        static void BuildCampLife(Transform root)
+        {
+            var r = new System.Random(4040);
+            float Rn(float a, float b) => a + (float)r.NextDouble() * (b - a);
+            var lp = new LowPolyMesh(6); // 0 дерево, 1 светлое дерево/верёвка, 2 ткань тёплая, 3 ткань красная, 4 железо, 5 камень
+            Vector3 G(Vector2 v, float lift = 0f) => Ground(v, lift);
+            // Котелок на трёх камнях
+            var potPos = FirePos + new Vector2(2.1f, -0.8f);
+            for (int i = 0; i < 3; i++)
+            {
+                float a = i * Mathf.PI * 2f / 3f;
+                var sp = G(potPos + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 0.35f);
+                lp.Lathe(5, Matrix4x4.TRS(sp, Quaternion.Euler(0f, Rn(0f, 360f), 0f), Vector3.one * 0.22f), new[] { -0.2f, 0.4f, 0.9f }, new[] { 0.8f, 1f, 0.4f }, 6, r, 0.2f);
+            }
+            var pot = Matrix4x4.TRS(G(potPos, 0.18f), Quaternion.identity, Vector3.one);
+            lp.Lathe(4, pot, new[] { 0f, 0.1f, 0.35f, 0.45f, 0.5f }, new[] { 0.15f, 0.3f, 0.34f, 0.28f, 0.3f }, 10, null, 0f, true);
+            lp.Lathe(4, pot, new[] { 0.5f, 0.52f }, new[] { 0.31f, 0.31f }, 10);
+            // Миски и ложки вокруг костра
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * Mathf.PI * 2f / 6f + 0.3f;
+                var bp = FirePos + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Rn(2.4f, 3.4f);
+                var bm = Matrix4x4.TRS(G(bp, 0.01f), Quaternion.Euler(Rn(-6f, 6f), Rn(0f, 360f), 0f), Vector3.one);
+                lp.Lathe(0, bm, new[] { 0f, 0.04f, 0.1f }, new[] { 0.06f, 0.12f, 0.15f }, 9, null, 0f, true);
+                if (i % 2 == 0)
+                    lp.Box(1, bm * Matrix4x4.TRS(new Vector3(0.12f, 0.1f, 0f), Quaternion.Euler(0f, 0f, 20f), Vector3.one), Vector3.zero, new Vector3(0.28f, 0.02f, 0.04f));
+            }
+            // Мешки, тряпки, верёвки и ящики у палаток
+            Vector2[] spots = { new Vector2(-28f, 90.5f), new Vector2(-32f, 108f), new Vector2(-23.5f, 113f), new Vector2(-33f, 96f), new Vector2(-20f, 87f), new Vector2(-24f, 99f) };
+            for (int i = 0; i < spots.Length; i++)
+            {
+                var sp = spots[i];
+                var dir = Flat(FirePos - sp);
+                var side = Vector3.Cross(Vector3.up, dir);
+                // Мешок
+                var sackP = G(sp) + side * 1.1f;
+                lp.Lathe(2, Matrix4x4.TRS(sackP, Quaternion.Euler(Rn(-8f, 8f), Rn(0f, 360f), Rn(-8f, 8f)), Vector3.one),
+                    new[] { 0f, 0.15f, 0.45f, 0.62f, 0.7f }, new[] { 0.2f, 0.3f, 0.28f, 0.12f, 0.08f }, 7, r, 0.15f, true);
+                // Тряпка на земле
+                var ragP = G(sp, 0.02f) - side * 1.2f + dir * 0.6f;
+                lp.Box(i % 2 == 0 ? 3 : 2, Matrix4x4.TRS(ragP, Quaternion.Euler(Rn(-4f, 4f), Rn(0f, 360f), Rn(-4f, 4f)), Vector3.one), Vector3.zero, new Vector3(Rn(0.5f, 0.9f), 0.03f, Rn(0.4f, 0.7f)));
+                // Моток верёвки
+                if (i % 2 == 1)
+                {
+                    var rc = G(sp, 0.05f) + side * 0.2f - dir * 0.9f;
+                    float ang = 0f;
+                    for (int k = 0; k < 28; k++)
+                    {
+                        ang += 0.45f;
+                        float rad = 0.16f + (k % 14) * 0.004f;
+                        var q = rc + new Vector3(Mathf.Cos(ang) * rad, (k / 14) * 0.05f, Mathf.Sin(ang) * rad);
+                        lp.Box(1, Matrix4x4.TRS(q, Quaternion.LookRotation(new Vector3(-Mathf.Sin(ang), 0f, Mathf.Cos(ang))), Vector3.one), Vector3.zero, new Vector3(0.04f, 0.04f, 0.09f));
+                    }
+                }
+                // Ящик или ведро
+                var cp = G(sp) - side * 0.2f - dir * 1.6f;
+                if (i % 3 == 0)
+                {
+                    var cm = Matrix4x4.TRS(cp, Quaternion.Euler(0f, Rn(0f, 90f), 0f), Vector3.one);
+                    lp.Box(0, cm, new Vector3(0f, 0.28f, 0f), new Vector3(0.6f, 0.56f, 0.5f));
+                    lp.Box(1, cm, new Vector3(0f, 0.28f, 0.26f), new Vector3(0.62f, 0.08f, 0.02f));
+                }
+                else if (i % 3 == 1)
+                {
+                    var bm = Matrix4x4.TRS(cp, Quaternion.identity, Vector3.one);
+                    lp.Lathe(0, bm, new[] { 0f, 0.4f }, new[] { 0.18f, 0.22f }, 9, null, 0f, true);
+                    lp.Lathe(4, bm, new[] { 0.32f, 0.36f }, new[] { 0.215f, 0.215f }, 9);
+                }
+                else
+                {
+                    for (int k = 0; k < 3; k++)
+                        lp.Lathe(0, Matrix4x4.TRS(cp + new Vector3(0f, 0.12f + (k == 2 ? 0.2f : 0f), (k - 0.5f) * 0.25f * (k < 2 ? 1f : 0f)), Quaternion.LookRotation(side) * Quaternion.Euler(90f, 0f, 0f), Vector3.one),
+                            new[] { -0.5f, 0.5f }, new[] { 0.12f, 0.11f }, 7, null, 0f, true);
+                }
+            }
+            var go = MeshObject("CampLife", root, Register(lp.ToMesh("Z1_CampLife")), new[] { mWood, mWoodPale, mHideWarm, mClothRed, mIron, mRock }, false);
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
         }
 
         static Mesh TentMesh(bool truth)
@@ -2035,16 +2147,17 @@ namespace FalseParadise.EditorTools
             spot.type = LightType.Spot;
             spot.color = new Color(0.72f, 0.84f, 1f);
             spot.range = h + 4f;
-            spot.spotAngle = Mathf.Clamp(2f * Mathf.Atan(botR * 1.4f / h) * Mathf.Rad2Deg, 15f, 80f);
-            spot.innerSpotAngle = spot.spotAngle * 0.45f;
-            spot.intensity = spotIntensity;
+            spot.spotAngle = Mathf.Clamp(2f * Mathf.Atan(botR * 1.6f / h) * Mathf.Rad2Deg, 15f, 80f);
+            spot.innerSpotAngle = spot.spotAngle * 0.35f;
+            // Затухание ~1/r²: без поправки на высоту пятно на полу почти не видно
+            spot.intensity = spotIntensity * h * h / 55f;
             if (shadows) ShadowLight(spot); else spot.shadows = LightShadows.None;
 
             var dust = new GameObject("Dust");
             dust.transform.SetParent(root, false);
             dust.transform.position = new Vector3(xz.x, floorY + h * 0.45f, xz.y);
-            var ps = Particles(dust, pDust, 10f + botR * 6f, 4f, 7f, 0.02f, 0.08f, 0.02f, 0.045f,
-                new Color(0.85f, 0.92f, 1f, 0.8f), new Color(1f, 0.95f, 0.85f, 0.6f), -0.002f, 160, FadeCurve(), 0.15f);
+            var ps = Particles(dust, pDust, 10f + botR * 6f, 6f, 10f, 0f, 0.02f, 0.02f, 0.045f,
+                new Color(0.85f, 0.92f, 1f, 0.8f), new Color(1f, 0.95f, 0.85f, 0.6f), 0.0015f, 220, FadeCurve(), 0.08f);
             ShapeBox(ps, new Vector3(botR * 1.3f, h * 0.85f, botR * 1.3f));
             return spot;
         }
@@ -2283,7 +2396,9 @@ namespace FalseParadise.EditorTools
         static void BuildAtmosphere(Camera cam)
         {
             // Тени в референсе не чёрные, а холодные сине-серые: сверху холод, снизу тёплый отсвет пола
-            var illusionFog = new Color(0.055f, 0.06f, 0.075f);
+            // Холодный эмбиент (светлее, от автора) и туман ExponentialSquared в голубой оттенок (эксперт):
+            // силуэты читаются, дальний план уходит в воздух, а не в чёрную пустоту
+            var illusionFog = new Color(0.07f, 0.085f, 0.13f);
             var illusionAmbient = new Color(0.17f, 0.19f, 0.29f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
@@ -2292,8 +2407,8 @@ namespace FalseParadise.EditorTools
             RenderSettings.ambientGroundColor = new Color(0.16f, 0.12f, 0.10f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.026f;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = 0.032f;
             RenderSettings.fogColor = illusionFog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
@@ -2319,10 +2434,10 @@ namespace FalseParadise.EditorTools
 
             // Лучи из трещин в своде: у входа и в зале первого боя
             var shafts = new GameObject("LightShafts").transform;
-            LightShaft(shafts, new Vector2(-4f, 9f), 0.8f, 2.2f, 45f, 0.4f, false);
-            LightShaft(shafts, new Vector2(16f, 50f), 0.9f, 2.6f, 80f, 0.38f, false);
+            LightShaft(shafts, new Vector2(-4f, 9f), 0.8f, 2.2f, 45f, 0.16f, false);
+            LightShaft(shafts, new Vector2(16f, 50f), 0.9f, 2.6f, 60f, 0.15f, false);
             // Как на референсе: столб света сверху в зал с костром, дым поднимается в луч
-            LightShaft(shafts, FirePos + new Vector2(2.5f, 2f), 1.6f, 3.8f, 70f, 0.45f, false);
+            LightShaft(shafts, FirePos + new Vector2(2.5f, 2f), 1.6f, 3.8f, 55f, 0.18f, false);
 
             // Слоистая дымка в залах: тёплая у огня, темнее в проходах (объёмного тумана в URP нет)
             var haze = new GameObject("Haze").transform;
@@ -2348,7 +2463,7 @@ namespace FalseParadise.EditorTools
             so.FindProperty("illusionFog").colorValue = illusionFog;
             so.FindProperty("illusionTorch").colorValue = TorchColor;
             so.FindProperty("truthAmbient").colorValue = new Color(0.24f, 0.22f, 0.2f);
-            so.FindProperty("truthFog").colorValue = new Color(0.1f, 0.09f, 0.08f);
+            so.FindProperty("truthFog").colorValue = new Color(0.13f, 0.11f, 0.1f);
             so.FindProperty("truthTorch").colorValue = new Color(1f, 0.8f, 0.5f);
             var list = so.FindProperty("torches");
             list.arraySize = moodLights.Count;
@@ -2378,9 +2493,9 @@ namespace FalseParadise.EditorTools
             tone.mode.Override(TonemappingMode.ACES);
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.Override(0.95f);
+            bloom.threshold.Override(1.1f);
             bloom.intensity.Override(0.85f);
-            bloom.scatter.Override(0.78f);
+            bloom.scatter.Override(0.7f);
 
             var vignette = profile.Add<Vignette>(true);
             vignette.intensity.Override(0.26f);
