@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Game/Scenes/Zone2_OgreVillage.unity
+    guid: dc66354357b113a49a28824e201a776d
+  - enabled: 1
     path: Assets/_Game/Scenes/Gate_Elven.unity
     guid: bb4fabc6f983c1a489e1a77d6877da82
   - enabled: 1

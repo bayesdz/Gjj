@@ -264,6 +264,13 @@ namespace FalseParadise
             StopMoving();
         }
 
+        /// <summary>Сдаться без боя (огр-вождь опускает оружие): сразу выбор «Пощадить / Добить».</summary>
+        public void Surrender()
+        {
+            if (State == EnemyState.Dead || State == EnemyState.Spared || State == EnemyState.Kneel) return;
+            EnterKneel();
+        }
+
         // IInteractable: пощада на E, только пока враг на коленях.
         public bool CanInteract => State == EnemyState.Kneel;
         public string Prompt => "[E] Пощадить     [ЛКМ] Добить";

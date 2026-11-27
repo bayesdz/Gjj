@@ -18,9 +18,9 @@ namespace FalseParadise.EditorTools
 
         internal struct Shot
         {
-            public string name; public Vector2 from, to; public float lookY;
-            public Shot(string n, float fx, float fz, float tx, float tz, float lookY = 0f)
-            { name = n; from = new Vector2(fx, fz); to = new Vector2(tx, tz); this.lookY = lookY; }
+            public string name; public Vector2 from, to; public float lookY; public bool truth;
+            public Shot(string n, float fx, float fz, float tx, float tz, float lookY = 0f, bool truth = false)
+            { name = n; from = new Vector2(fx, fz); to = new Vector2(tx, tz); this.lookY = lookY; this.truth = truth; }
         }
 
         static readonly Shot[] Shots =
@@ -61,6 +61,25 @@ namespace FalseParadise.EditorTools
             }
         }
 
+        /// <summary>Показать мир «через Око» без Play mode: облики IllusionVisual и настроение TruthMood.</summary>
+        static void SetTruth(bool truth)
+        {
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            foreach (var iv in Object.FindObjectsByType<IllusionVisual>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var lie = typeof(IllusionVisual).GetField("illusionModel", flags)?.GetValue(iv) as GameObject;
+                var tru = typeof(IllusionVisual).GetField("truthModel", flags)?.GetValue(iv) as GameObject;
+                if (lie != null) lie.SetActive(!truth);
+                if (tru != null) tru.SetActive(truth);
+            }
+            var mood = Object.FindFirstObjectByType<TruthMood>();
+            if (mood != null)
+            {
+                typeof(TruthMood).GetField("t", flags)?.SetValue(mood, truth ? 1f : 0f);
+                typeof(TruthMood).GetMethod("Apply", flags)?.Invoke(mood, null);
+            }
+        }
+
         static void Capture(Shot[] shots, System.Func<float, float, float> height, string prefix)
         {
             string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Screenshots"));
@@ -85,6 +104,7 @@ namespace FalseParadise.EditorTools
                 var target = new Vector3(s.to.x, height(s.to.x, s.to.y) + Eye + s.lookY, s.to.y);
                 cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(target - pos));
                 if (budget != null) budget.ApplyFor(pos); // тени как в игре
+                SetTruth(s.truth);
 
                 // Два прохода: первый прогревает шейдеры и временные буферы
                 cam.Render();
@@ -101,6 +121,7 @@ namespace FalseParadise.EditorTools
                 Debug.Log($"[Shots] {file}  pos={pos}");
             }
 
+            SetTruth(false);
             cam.targetTexture = prevTarget;
             Object.DestroyImmediate(rt);
             Object.DestroyImmediate(tex);

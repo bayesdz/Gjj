@@ -19,7 +19,7 @@ namespace FalseParadise.EditorTools
             public Texture2D albedo, normal;
         }
 
-        internal enum MuralTheme { GoblinLife, ElvenHistory }
+        internal enum MuralTheme { GoblinLife, ElvenHistory, OgreHistory }
 
         static readonly Dictionary<string, Pair> cache = new Dictionary<string, Pair>();
 
@@ -246,6 +246,59 @@ namespace FalseParadise.EditorTools
             return p;
         }
 
+        // ---------------------------------------------------------------- земля и солома
+
+        /// <summary>Земля деревни: утоптанная глина с травой пятнами, камешки. Цветная (не только светлота).</summary>
+        internal static Pair Ground()
+        {
+            if (cache.TryGetValue("ground", out var p)) return p;
+            const int N = 1024;
+            var h = new float[N * N];
+            var col = new Color[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (float)x / N, v = (float)y / N;
+                float big = Fbm(u, v, 3, 4, 0.55f, 700);
+                float grain = Fbm(u, v, 32, 3, 0.55f, 710);
+                float grassMask = SStep(0.45f, 0.62f, big + (grain - 0.5f) * 0.25f);
+                // Трава — мелкие штрихи (вытянутый шум), земля — комки и камешки
+                float blades = Fbm(u * 1f, v, 96, 2, 0.5f, 720);
+                float pebble = SStep(0.78f, 0.84f, VNoise(u, v, 90, 730));
+                var dirt = new Color(0.62f, 0.5f, 0.38f) * (0.78f + 0.35f * grain) * (1f - pebble * 0.2f) + new Color(0.1f, 0.1f, 0.1f) * pebble;
+                var grass = Color.Lerp(new Color(0.4f, 0.5f, 0.28f), new Color(0.58f, 0.6f, 0.34f), blades) * (0.8f + 0.3f * grain);
+                col[y * N + x] = Color.Lerp(dirt, grass, grassMask);
+                h[y * N + x] = 0.4f * grain + 0.3f * grassMask * blades + 0.3f * pebble;
+            }
+            p = Save("T_Ground", N, N, col, h, 3f, true);
+            cache["ground"] = p;
+            return p;
+        }
+
+        /// <summary>Солома для крыш: плотные вертикальные пряди, ряды связок.</summary>
+        internal static Pair Thatch()
+        {
+            if (cache.TryGetValue("thatch", out var p)) return p;
+            const int N = 512;
+            var h = new float[N * N];
+            var col = new Color[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (float)x / N, v = (float)y / N;
+                float strands = VNoise(u, v, 128, 740) * 0.6f + VNoise(u, v, 64, 741) * 0.4f;
+                strands = Mathf.Lerp(strands, VNoise(u * 1f, v * 0.08f, 160, 742), 0.6f); // пряди вдоль v
+                float row = Mathf.Repeat(v * 6f + VNoise(u, v, 8, 743) * 0.2f, 1f);
+                float tie = 1f - SStep(0f, 0.08f, row) * SStep(1f, 0.92f, row);
+                float lum = (0.7f + 0.4f * strands) * (1f - tie * 0.35f) * (0.85f + 0.2f * Fbm(u, v, 4, 3, 0.5f, 744));
+                col[y * N + x] = new Color(1.02f, 0.92f, 0.72f) * lum;
+                h[y * N + x] = strands * 0.7f - tie * 0.3f;
+            }
+            p = Save("T_Thatch", N, N, col, h, 4f, true);
+            cache["thatch"] = p;
+            return p;
+        }
+
         // ---------------------------------------------------------------- доски
 
         internal static Pair Planks()
@@ -358,6 +411,43 @@ namespace FalseParadise.EditorTools
                 // Над всем — большая фигура с сиянием (богиня?) перечёркнута
                 Goblin(painter, 0.25f, 0.55f, 0.16f, umber, coal, false, r);
                 Sun(painter, 0.6f, 0.68f, 0.035f, umber);
+            }
+            else if (theme == MuralTheme.OgreHistory)
+            {
+                // История огров: поля и дома → Сияющие с крыльями жгут хижины → огры защищают детей
+                for (int i = 0; i < 3; i++)
+                {
+                    float hx = 0.08f + i * 0.08f;
+                    painter.Line(hx - 0.03f, 0.22f, hx - 0.03f, 0.32f, 3f, umber);
+                    painter.Line(hx + 0.03f, 0.22f, hx + 0.03f, 0.32f, 3f, umber);
+                    painter.Line(hx - 0.045f, 0.32f, hx, 0.42f, 3.5f, ochre);
+                    painter.Line(hx, 0.42f, hx + 0.045f, 0.32f, 3.5f, ochre);
+                }
+                for (int i = 0; i < 6; i++) painter.Line(0.06f + i * 0.04f, 0.17f, 0.08f + i * 0.04f, 0.2f, 2.5f, new Color(0.3f, 0.42f, 0.18f));
+                Goblin(painter, 0.3f, 0.2f, 0.26f, umber, coal, false, r);
+                Goblin(painter, 0.36f, 0.2f, 0.13f, umber, coal, false, r);
+                // Сияющие: светлые фигуры с крыльями, под ними огонь
+                for (int i = 0; i < 3; i++)
+                {
+                    float sx = 0.48f + i * 0.07f, sy = 0.55f + (i % 2) * 0.06f;
+                    painter.Circle(sx, sy + 0.06f, 0.012f, ochre, 0f);
+                    painter.Line(sx, sy + 0.05f, sx, sy - 0.04f, 3f, ochre);
+                    painter.Arc(sx - 0.03f, sy + 0.02f, 0.03f, 0.2f, 2.4f, ochre, 2.5f);
+                    painter.Arc(sx + 0.03f, sy + 0.02f, 0.03f, 0.7f, 2.9f, ochre, 2.5f);
+                    painter.Line(sx, sy - 0.05f, sx - 0.02f, 0.3f, 1.5f, new Color(0.75f, 0.35f, 0.12f));
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    float fx = 0.47f + i * 0.05f;
+                    painter.Line(fx - 0.015f, 0.2f, fx, 0.3f, 4f, new Color(0.72f, 0.25f, 0.1f));
+                    painter.Line(fx + 0.015f, 0.2f, fx, 0.27f, 3f, ochre);
+                }
+                // Огры заслоняют детей
+                Goblin(painter, 0.76f, 0.2f, 0.3f, coal, coal, true, r);
+                Goblin(painter, 0.84f, 0.2f, 0.28f, coal, coal, true, r);
+                Goblin(painter, 0.8f, 0.2f, 0.1f, umber, coal, false, r);
+                Goblin(painter, 0.9f, 0.2f, 0.09f, umber, coal, false, r);
+                Sun(painter, 0.9f, 0.7f, 0.035f, umber);
             }
             else
             {

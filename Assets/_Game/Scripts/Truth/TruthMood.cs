@@ -19,6 +19,13 @@ namespace FalseParadise
         [SerializeField] Color truthFog = new Color(0.12f, 0.11f, 0.09f);
         [SerializeField] Color truthTorch = new Color(1f, 0.78f, 0.45f);
 
+        [Header("Солнце (необязательно, для зон под открытым небом)")]
+        [SerializeField] Light sun;
+        [SerializeField] Color illusionSun = new Color(1f, 0.3f, 0.2f);
+        [SerializeField] Color truthSun = new Color(1f, 0.75f, 0.5f);
+        [SerializeField] float illusionSunIntensity = 1.5f;
+        [SerializeField] float truthSunIntensity = 2f;
+
         [SerializeField] float fadeTime = 0.35f;
         [SerializeField] List<Light> torches = new List<Light>();
 
@@ -49,6 +56,11 @@ namespace FalseParadise
             RenderSettings.fogColor = Color.Lerp(illusionFog, truthFog, t);
             var torch = Color.Lerp(illusionTorch, truthTorch, t);
             foreach (var l in torches) if (l != null) l.color = torch;
+            if (sun != null)
+            {
+                sun.color = Color.Lerp(illusionSun, truthSun, t);
+                sun.intensity = Mathf.Lerp(illusionSunIntensity, truthSunIntensity, t);
+            }
             var cam = Camera.main;
             if (cam != null) cam.backgroundColor = RenderSettings.fogColor;
         }
