@@ -1109,10 +1109,12 @@ namespace FalseParadise.EditorTools
             var left = Door("DoorLeft", -1);
             var right = Door("DoorRight", 1);
 
-            // Свет рун перед вратами; за вратами — тёплый закатный свет следующей зоны
-            var rune = Z.PointLight(root, "RuneLight", M.MultiplyPoint3x4(new Vector3(0f, floorTop + 7f, 4f)), new Color(0.35f, 1f, 0.88f), 20f, 7f);
+            // Свет рун перед вратами + верхняя лунная подсветка шпилей и арки; за вратами — тёплый закат следующей зоны
+            var rune = Z.PointLight(root, "RuneLight", M.MultiplyPoint3x4(new Vector3(0f, floorTop + 7f, 4.5f)), new Color(0.38f, 1f, 0.9f), 28f, 16f);
             rune.shadows = LightShadows.None;
-            var beyond = Z.PointLight(root, "BeyondGlow", Ground(Beyond.c, 3.5f), new Color(1f, 0.62f, 0.42f), 16f, 9f);
+            var gateCrestLight = Z.PointLight(root, "GateCrestLight", M.MultiplyPoint3x4(new Vector3(0f, floorTop + 14.5f, 5.5f)), new Color(0.60f, 0.84f, 1f), 26f, 14f);
+            gateCrestLight.shadows = LightShadows.None;
+            var beyond = Z.PointLight(root, "BeyondGlow", Ground(Beyond.c, 3.5f), new Color(1f, 0.62f, 0.42f), 18f, 11f);
             beyond.shadows = LightShadows.None;
             var veil = new GameObject("BeyondVeil");
             veil.transform.SetParent(root, false);
@@ -1778,13 +1780,13 @@ namespace FalseParadise.EditorTools
             var fog = new Color(0.03f, 0.05f, 0.07f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.16f, 0.19f, 0.26f);
-            RenderSettings.ambientEquatorColor = new Color(0.11f, 0.12f, 0.15f);
-            RenderSettings.ambientGroundColor = new Color(0.06f, 0.07f, 0.075f);
+            RenderSettings.ambientSkyColor = new Color(0.22f, 0.27f, 0.37f);
+            RenderSettings.ambientEquatorColor = new Color(0.15f, 0.17f, 0.22f);
+            RenderSettings.ambientGroundColor = new Color(0.08f, 0.095f, 0.11f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.022f;
+            RenderSettings.fogDensity = 0.019f;
             RenderSettings.fogColor = fog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
@@ -1873,12 +1875,12 @@ namespace FalseParadise.EditorTools
             bloom.scatter.Override(0.75f);
             bloom.tint.Override(new Color(0.85f, 0.95f, 1f));
             var vignette = profile.Add<Vignette>(true);
-            vignette.intensity.Override(0.3f);
-            vignette.smoothness.Override(0.45f);
+            vignette.intensity.Override(0.24f);
+            vignette.smoothness.Override(0.5f);
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.Override(1.1f);
-            color.contrast.Override(20f);
-            color.saturation.Override(-6f);
+            color.postExposure.Override(1.22f);
+            color.contrast.Override(17f);
+            color.saturation.Override(-4f);
             var split = profile.Add<SplitToning>(true);
             split.shadows.Override(new Color(0.36f, 0.5f, 0.58f));
             split.highlights.Override(new Color(0.55f, 0.58f, 0.64f));

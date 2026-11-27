@@ -1029,9 +1029,27 @@ namespace FalseParadise.EditorTools
                 mi++;
             }
 
-            // Жаровни: две во дворе, две в зале
-            foreach (var b in new[] { new Vector3(38f, y, 66f), new Vector3(50f, y, 66f), new Vector3(39f, y, 85f), new Vector3(49f, y, 85f) })
-                Brazier(root, b, b.z > 80f);
+            // Жаровни: две у ворот, две во дворе, четыре в тронном зале
+            foreach (var b in new[] {
+                new Vector3(38f, y, 56.5f), new Vector3(50f, y, 56.5f),
+                new Vector3(38f, y, 66f), new Vector3(50f, y, 66f),
+                new Vector3(39f, y, 77.5f), new Vector3(49f, y, 77.5f),
+                new Vector3(39f, y, 86.5f), new Vector3(49f, y, 86.5f) })
+                Brazier(root, b, b.z > 82f);
+
+            // Мягкая верхняя и контровая подсветка тронного зала + фресок истории огров
+            var hallFill = Z.PointLight(root, "ThroneHallFill", new Vector3(44f, hy + 6.2f, 83.5f), new Color(1f, 0.72f, 0.48f), 26f, 20f);
+            hallFill.shadows = LightShadows.None;
+            warmLights.Add(hallFill);
+            var throneRim = Z.PointLight(root, "ThroneRimLight", new Vector3(44f, hy + 5.2f, 90.2f), new Color(1f, 0.78f, 0.55f), 16f, 16f);
+            throneRim.shadows = LightShadows.None;
+            warmLights.Add(throneRim);
+            foreach (var mx in new[] { HallMinX + 3.2f, HallMaxX - 3.2f })
+            {
+                var ml = Z.PointLight(root, "MuralFill", new Vector3(mx, hy + 3.5f, 83.5f), new Color(1f, 0.74f, 0.50f), 14f, 10f);
+                ml.shadows = LightShadows.None;
+                warmLights.Add(ml);
+            }
 
             // Знамёна: иллюзия — красные с черепом, правда — охра с очагом
             var lie = new LowPolyMesh(3);
@@ -1055,11 +1073,13 @@ namespace FalseParadise.EditorTools
 
         static void Tower(LowPolyMesh stone, LowPolyMesh wood, Vector3 p, float rad, float h, System.Random r)
         {
+            // Внутреннее ядро башни, чтобы небо не просвечивало сквозь горизонтальные швы кладки
+            stone.Lathe(0, Matrix4x4.TRS(p, Quaternion.identity, Vector3.one), new[] { -0.8f, h + 0.1f }, new[] { rad - 0.12f, rad - 0.14f }, 12, null, 0f, false);
             float yy = -0.6f;
             while (yy < h)
             {
                 float rowH = 0.6f;
-                stone.Lathe(0, Matrix4x4.TRS(p, Quaternion.Euler(0f, (float)r.NextDouble() * 30f, 0f), Vector3.one), new[] { yy, yy + rowH - 0.03f }, new[] { rad, rad - 0.02f }, 12, r, 0.015f, false);
+                stone.Lathe(0, Matrix4x4.TRS(p, Quaternion.Euler(0f, (float)r.NextDouble() * 30f, 0f), Vector3.one), new[] { yy, yy + rowH - 0.02f }, new[] { rad, rad - 0.02f }, 12, r, 0.015f, false);
                 yy += rowH;
             }
             stone.Lathe(0, Matrix4x4.TRS(p, Quaternion.identity, Vector3.one), new[] { h, h + 0.5f }, new[] { rad + 0.4f, rad + 0.4f }, 12, null, 0f, true);
@@ -1080,11 +1100,11 @@ namespace FalseParadise.EditorTools
             var lp = new LowPolyMesh(1);
             lp.Lathe(0, Matrix4x4.identity, new[] { 0f, 0.2f, 1f, 1.2f, 1.5f }, new[] { 0.45f, 0.2f, 0.16f, 0.55f, 0.62f }, 8, null, 0f, true);
             Z.MeshObject("Mesh", t, Register(lp.ToMesh("Z2_Brazier_" + parent.childCount)), new[] { mIron }, true);
-            var l = Z.PointLight(t, "Light", p + Vector3.up * 2.1f, new Color(1f, 0.6f, 0.3f), 12f, 10f);
+            var l = Z.PointLight(t, "Light", p + Vector3.up * 2.1f, new Color(1f, 0.62f, 0.32f), 17f, 16f);
             if (shadows) ShadowLight(l); else l.shadows = LightShadows.None;
             var flick = l.gameObject.AddComponent<TorchFlicker>();
-            SetFloat(flick, "baseIntensity", 10f);
-            SetFloat(flick, "flickerAmount", 2f);
+            SetFloat(flick, "baseIntensity", 16f);
+            SetFloat(flick, "flickerAmount", 2.4f);
             warmLights.Add(l);
             Fire(t, p + Vector3.up * 1.45f, 0.5f);
         }
@@ -1688,8 +1708,8 @@ namespace FalseParadise.EditorTools
             so.FindProperty("sun").objectReferenceValue = sun;
             so.FindProperty("illusionSun").colorValue = new Color(1f, 0.42f, 0.3f);
             so.FindProperty("truthSun").colorValue = new Color(1f, 0.74f, 0.5f);
-            so.FindProperty("illusionSunIntensity").floatValue = 1.7f;
-            so.FindProperty("truthSunIntensity").floatValue = 2.6f;
+            so.FindProperty("illusionSunIntensity").floatValue = 2.35f;
+            so.FindProperty("truthSunIntensity").floatValue = 2.75f;
             var list = so.FindProperty("torches");
             list.arraySize = warmLights.Count;
             for (int i = 0; i < warmLights.Count; i++) list.GetArrayElementAtIndex(i).objectReferenceValue = warmLights[i];

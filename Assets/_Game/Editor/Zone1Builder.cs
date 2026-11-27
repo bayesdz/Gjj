@@ -1426,7 +1426,7 @@ namespace FalseParadise.EditorTools
             var ffs = Particles(flames, pFire, 80f, 0.55f, 1f, 1f, 2f, 0.8f, 1.4f,
                 new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 80, ShrinkCurve(), 0.8f);
             ShapeCone(ffs, 10f, 0.7f);
-            Halo(fire, fire.position + Vector3.up * 1.1f, 5f, 7f);
+            Halo(fire, fire.position + Vector3.up * 1.1f, 2.8f, 4.0f, new Color(1f, 0.58f, 0.25f, 0.16f));
             var fireSparks = new GameObject("Embers");
             fireSparks.transform.SetParent(fire, false);
             fireSparks.transform.position = fire.position + Vector3.up * 0.8f;
@@ -1744,7 +1744,7 @@ namespace FalseParadise.EditorTools
             var fps = Particles(fire, pFire, 40f, 0.35f, 0.65f, 0.5f, 1.2f, 0.32f, 0.6f,
                 new Color(1f, 0.8f, 0.45f), new Color(1f, 0.45f, 0.12f), -0.1f, 40, ShrinkCurve(), 0.2f);
             ShapeCone(fps, 6f, 0.1f);
-            Halo(t, flameTop - Vector3.up * 0.2f, 1.8f, 2.6f);
+            Halo(t, flameTop - Vector3.up * 0.2f, 0.95f, 1.45f, new Color(1f, 0.6f, 0.28f, 0.14f));
 
             // Дым
             var smoke = new GameObject("Smoke");
@@ -2283,17 +2283,17 @@ namespace FalseParadise.EditorTools
         static void BuildAtmosphere(Camera cam)
         {
             // Тени в референсе не чёрные, а холодные сине-серые: сверху холод, снизу тёплый отсвет пола
-            var illusionFog = new Color(0.05f, 0.052f, 0.06f);
-            var illusionAmbient = new Color(0.12f, 0.13f, 0.22f);
+            var illusionFog = new Color(0.055f, 0.06f, 0.075f);
+            var illusionAmbient = new Color(0.17f, 0.19f, 0.29f);
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = illusionAmbient;
-            RenderSettings.ambientEquatorColor = new Color(0.1f, 0.1f, 0.15f);
-            RenderSettings.ambientGroundColor = new Color(0.14f, 0.105f, 0.085f);
+            RenderSettings.ambientEquatorColor = new Color(0.14f, 0.145f, 0.21f);
+            RenderSettings.ambientGroundColor = new Color(0.16f, 0.12f, 0.10f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.03f;
+            RenderSettings.fogDensity = 0.026f;
             RenderSettings.fogColor = illusionFog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
@@ -2305,13 +2305,17 @@ namespace FalseParadise.EditorTools
             foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
                 if (l.type == LightType.Directional) Object.DestroyImmediate(l.gameObject);
 
-            // Мягкая «подсветка от стен» в каждом зале: имитация отражённого света факелов
+            // Мягкая «подсветка от стен» в каждом зале: имитация отражённого света факелов и свода
             var fillRoot = new GameObject("BounceLights").transform;
             foreach (var room in Rooms)
             {
-                var f = PointLight(fillRoot, "Bounce", Ground(room.c, Mathf.Min(6f, room.r * 0.35f)), new Color(0.6f, 0.66f, 0.92f), room.r * 1.4f + 8f, room.r * 1f);
+                var f = PointLight(fillRoot, "Bounce", Ground(room.c, Mathf.Min(6.5f, room.r * 0.38f)), new Color(0.58f, 0.67f, 0.94f), room.r * 1.55f + 10f, room.r * 1.45f);
                 f.shadows = LightShadows.None;
             }
+            // Зарево из глубины пропасти под мостом, чтобы читалась глубина ущелья
+            var chasmMid = (ChasmA + ChasmB) * 0.5f;
+            var chasmGlow = PointLight(fillRoot, "ChasmDepthGlow", new Vector3(chasmMid.x, -12f, chasmMid.y), new Color(0.95f, 0.38f, 0.18f), 28f, 22f);
+            chasmGlow.shadows = LightShadows.None;
 
             // Лучи из трещин в своде: у входа и в зале первого боя
             var shafts = new GameObject("LightShafts").transform;
@@ -2379,13 +2383,13 @@ namespace FalseParadise.EditorTools
             bloom.scatter.Override(0.78f);
 
             var vignette = profile.Add<Vignette>(true);
-            vignette.intensity.Override(0.32f);
-            vignette.smoothness.Override(0.45f);
+            vignette.intensity.Override(0.26f);
+            vignette.smoothness.Override(0.5f);
 
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.Override(1.05f);
-            color.contrast.Override(22f);
-            color.saturation.Override(-2f);
+            color.postExposure.Override(1.18f);
+            color.contrast.Override(18f);
+            color.saturation.Override(0f);
 
             var split = profile.Add<SplitToning>(true);
             split.shadows.Override(new Color(0.42f, 0.48f, 0.58f));
