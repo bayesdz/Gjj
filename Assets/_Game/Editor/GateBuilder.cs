@@ -222,6 +222,7 @@ namespace FalseParadise.EditorTools
                 EditorUtility.DisplayProgressBar("Elven Gate", "Рельеф и свод", 0.15f);
                 BuildTerrain(world);
                 BuildCeiling(world);
+                BuildBounds(world);
 
                 EditorUtility.DisplayProgressBar("Elven Gate", "Древние стены и фрески", 0.3f);
                 BuildRuins(world);
@@ -518,6 +519,68 @@ namespace FalseParadise.EditorTools
                 var go = Z.MeshObject($"Chunk_{kv.Key.x}_{kv.Key.y}", root, mesh, mats, true);
                 GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             }
+        }
+
+        /// <summary>
+        /// Невидимая ограда по контуру грота (Sdf = BoundIso, чуть внутри скалы): по камням и уступам
+        /// на склонах нельзя забраться на стены и выйти за карту. Marching squares по сетке 1 м,
+        /// вертикальные полосы от пола до свода, треугольники в обе стороны.
+        /// </summary>
+        static void BuildBounds(Transform world)
+        {
+            const float iso = 1.1f, step = 1f;
+            int nx = Mathf.RoundToInt((MaxX - MinX) / step) + 1;
+            int nz = Mathf.RoundToInt((MaxZ - MinZ) / step) + 1;
+            var f = new float[nx, nz];
+            for (int ix = 0; ix < nx; ix++)
+            for (int iz = 0; iz < nz; iz++)
+                f[ix, iz] = Sdf(MinX + ix * step, MinZ + iz * step) - iso;
+            var v = new List<Vector3>();
+            var t = new List<int>();
+            Vector2 P(int ix, int iz) => new Vector2(MinX + ix * step, MinZ + iz * step);
+            Vector2 Cross(int ax, int az, int bx, int bz)
+            {
+                float fa = f[ax, az], fb = f[bx, bz];
+                return Vector2.Lerp(P(ax, az), P(bx, bz), fa / (fa - fb));
+            }
+            void Strip(Vector2 a, Vector2 b)
+            {
+                float lo = Mathf.Min(Height(a.x, a.y), Height(b.x, b.y)) - 3f;
+                float hi = Mathf.Max(Mathf.Max(CeilingH(a.x, a.y), CeilingH(b.x, b.y)), Mathf.Max(Height(a.x, a.y), Height(b.x, b.y))) + 6f;
+                int i = v.Count;
+                v.Add(new Vector3(a.x, lo, a.y)); v.Add(new Vector3(b.x, lo, b.y));
+                v.Add(new Vector3(b.x, hi, b.y)); v.Add(new Vector3(a.x, hi, a.y));
+                t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3, i, i + 2, i + 1, i, i + 3, i + 2 });
+            }
+            for (int ix = 0; ix < nx - 1; ix++)
+            for (int iz = 0; iz < nz - 1; iz++)
+            {
+                // Рёбра клетки: 0 низ, 1 право, 2 верх, 3 лево
+                var pts = new List<Vector2>(4);
+                if ((f[ix, iz] < 0f) != (f[ix + 1, iz] < 0f)) pts.Add(Cross(ix, iz, ix + 1, iz));
+                if ((f[ix + 1, iz] < 0f) != (f[ix + 1, iz + 1] < 0f)) pts.Add(Cross(ix + 1, iz, ix + 1, iz + 1));
+                if ((f[ix, iz + 1] < 0f) != (f[ix + 1, iz + 1] < 0f)) pts.Add(Cross(ix, iz + 1, ix + 1, iz + 1));
+                if ((f[ix, iz] < 0f) != (f[ix, iz + 1] < 0f)) pts.Add(Cross(ix, iz, ix, iz + 1));
+                if (pts.Count >= 2) Strip(pts[0], pts[1]);
+                if (pts.Count == 4) Strip(pts[2], pts[3]);
+            }
+            // Проверка: все точки интереса внутри ограды
+            var keys = new List<Vector2> { SpawnPos, CircleC, GuardianPos, ElderPos, BrazierPos, TreePos, Beyond.c, new Vector2(GateX + 3f, 0f) };
+            keys.AddRange(TentPos);
+            keys.AddRange(ElfPos);
+            foreach (var k in keys)
+                if (Sdf(k.x, k.y) > iso - 0.5f) Debug.LogWarning($"[False Paradise] Врата: точка {k} у самой ограды (Sdf {Sdf(k.x, k.y):F2})");
+
+            var mesh = new Mesh { name = "G_Bounds" };
+            mesh.indexFormat = v.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            mesh.SetVertices(v);
+            mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            Register(mesh);
+            var go = new GameObject("Bounds");
+            go.transform.SetParent(world, false);
+            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
         }
 
         static Vector3 HeightNormal(float x, float z)
