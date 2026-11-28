@@ -10,14 +10,16 @@ using Z = FalseParadise.EditorTools.Zone1Builder;
 namespace FalseParadise.EditorTools
 {
     /// <summary>
-    /// Меню False Paradise → Build Zone 2 (Ogre Village). Каньон под открытым небом на закате:
+    /// Меню False Paradise → Build Zone 2 (Ogre Village). Огромная пещера в недрах горы (неба нет):
+    /// свод 25–40 м, между деревней и крепостью — расселина с лавой и естественный каменный мост.
     /// деревня огров (5 хижин, кузница с кузнецом, огороды, колодец, костёр, 2 стража),
     /// дорога в гору к крепости вождя (стены из кладки, башни, двор, тронный зал с фресками),
     /// лестница к свету (появляется после выбора).
     ///
-    /// Иллюзия и правда (TASKS.md, раздел 4): Глас — кровавое небо, кости, шипы, красные знамёна;
-    /// Око — мягкий закат, огороды, бельё на верёвках, цветы, игрушки. Переключают IllusionVisual
-    /// (двойные объекты, небо и солнце) и TruthMood (свет солнца, туман, ambient).
+    /// Иллюзия и правда (TASKS.md, раздел 4): Глас — кровавая лава, багровые искры на своде, кости, шипы,
+    /// красные знамёна; Око — тёплый очаг горы, светлячки на своде, огороды, бельё, цветы, игрушки.
+    /// Переключают IllusionVisual (двойные объекты, лава, свод) и TruthMood (свет лавы, туман, ambient).
+    /// Лестница к свету уходит в шахту свода: после выбора с вождём сверху бьёт дневной свет.
     ///
     /// Схема (метры, x — восток, z — север): вход (-28,3) → деревня (27,0) r30 → дорога (44,24..56)
     /// → крепость (24..64, 58..96), тронный зал (32..56, 74..94) → лестница к свету на восток.
@@ -76,7 +78,11 @@ namespace FalseParadise.EditorTools
         static readonly Vector2 SmithPos = new Vector2(16f, -8.5f);
         static readonly Vector2 ChiefPos = new Vector2(44f, 87f);
         static readonly Vector2 SonPos = new Vector2(45.5f, 90.5f);
-        static readonly Quaternion SunRot = Quaternion.Euler(15f, 250f, 0f); // солнце садится на северо-востоке, по ходу игрока
+
+        // Подземелье: лавовая расселина между деревней и крепостью, шахта к дневному свету над лестницей
+        const float LavaY = -3f;
+        static readonly Vector2 ShaftC = new Vector2(93f, 88f);
+        const float ShaftR = 4.5f;
 
         const float MinX = -44f, MaxX = 104f, MinZ = -48f, MaxZ = 116f;
         const float Cell = 2f;
@@ -146,12 +152,18 @@ namespace FalseParadise.EditorTools
             if (d > 0f)
             {
                 float n = Noise(x, z, 0.1f, 960f);
-                // Между деревней и крепостью — невысокий скальный гребень, чтобы крепость была видна с деревни
-                float ridge = 1f - Smooth(7f, 15f, Mathf.Abs(z - 42f));
+                // Между деревней и крепостью — низкий скальный гребень с лавовой расселиной: крепость и лава видны с деревни
+                float ridge = 1f - Smooth(9f, 17f, Mathf.Abs(z - 42f));
                 ridge *= Smooth(4f, 12f, x) * (1f - Smooth(80f, 92f, x));
                 float scale = Mathf.Lerp(1f, 0.16f, ridge);
                 h += (Smooth(0f, 4f, d) * (6f + 5f * n) + Smooth(2f, 26f, d) * (24f + 18f * n)) * scale;
                 h += (Noise(x, z, 0.21f, 1210f) - 0.5f) * 2.4f * Smooth(0f, 3f, d);
+                // Подземелье: скала везде дорастает до свода — сверху нет пустоты
+                float cd = CeilSdf(x, z);
+                if (cd > 0f) h = Mathf.Max(h, Mathf.Lerp(h, CeilingH(x, z) + 1.5f, Smooth(0.5f, 3f, cd)));
+                // Расселина с лавой
+                float fm = FissureMask(x, z);
+                if (fm > 0f) h = Mathf.Lerp(h, LavaY - 1.5f, fm);
             }
             return h;
         }
@@ -170,6 +182,50 @@ namespace FalseParadise.EditorTools
                 Mathf.Max(40f, Mathf.Max(Height(a.x, a.y), Height(b.x, b.y)) + 10f)),
                 MinX, MaxX, MinZ, MaxZ, 1.1f, keys, "Зона 2"));
         }
+
+        // ---------------------------------------------------------------- свод и расселина
+
+        /// <summary>Высота ступени лестницы к свету над точкой x.</summary>
+        static float StairY(float x) => FortH + (x - (FortMaxX - 0.5f)) / 0.9f * 0.62f;
+
+        static float FissureZ(float x) => 42f + Mathf.Sin(x * 0.085f + 0.6f) * 2.6f + (Noise(x, 0f, 0.15f, 3100f) - 0.5f) * 2f;
+        static float FissureW(float x) => 5.5f + Noise(x, 7f, 0.11f, 3200f) * 3f;
+
+        /// <summary>1 в русле расселины, 0 вне. Естественный мост дороги (x ≈ 44) не прорезаем.</summary>
+        static float FissureMask(float x, float z)
+        {
+            float w = FissureW(x);
+            float k = 1f - Smooth(w * 0.7f, w, Mathf.Abs(z - FissureZ(x)));
+            k *= Smooth(8f, 16f, x) * (1f - Smooth(80f, 88f, x));
+            k *= Smooth(4.6f, 7.5f, Mathf.Abs(x - 44f));
+            return k;
+        }
+
+        /// <summary>Контур пещеры для свода: проходимая часть плюс полоса расселины между деревней и крепостью.</summary>
+        static float CeilSdf(float x, float z)
+        {
+            float band = Mathf.Max(Mathf.Abs(z - 42f) - 13f, Mathf.Max(6f - x, x - 86f));
+            band += (Noise(x, z, 0.09f, 3300f) - 0.5f) * 3f;
+            return Mathf.Min(Sdf(x, z), band);
+        }
+
+        /// <summary>Свод: ~30 м над деревней, выше над крепостью (башни ~24 м), поднимается вслед за лестницей к свету.</summary>
+        static float CeilingH(float x, float z)
+        {
+            float d = CeilSdf(x, z);
+            float dome = d < 0f ? 14f + 16f * Smooth(0f, 24f, -d) : 14f - d * 1.2f;
+            dome += (Noise(x, z, 0.12f, 3400f) - 0.5f) * 4f + (Noise(x, z, 0.4f, 3500f) - 0.5f) * 0.8f;
+            float fx = Mathf.Max(FortMinX - x, x - FortMaxX), fz = Mathf.Max(FortMinZ - z, z - FortMaxZ);
+            dome += 8f * (1f - Smooth(-2f, 12f, Mathf.Max(fx, fz)));
+            float h = Mathf.Max(FloorH(x, z), 0f) + dome;
+            float k = (1f - Smooth(5f, 10f, Mathf.Abs(z - 88f))) * Smooth(FortMaxX - 6f, FortMaxX + 2f, x);
+            float target = StairY(Mathf.Clamp(x, FortMaxX - 2f, 100f)) + 9f;
+            if (target > h) h = Mathf.Lerp(h, target, k);
+            return h;
+        }
+
+        static float ShaftSdf(float x, float z) =>
+            Vector2.Distance(new Vector2(x, z), ShaftC) - ShaftR + (Noise(x, z, 0.35f, 3600f) - 0.5f) * 1.6f;
 
         static Vector3 Ground(Vector2 p, float lift = 0f) => new Vector3(p.x, Height(p.x, p.y) + lift, p.y);
 
@@ -198,7 +254,8 @@ namespace FalseParadise.EditorTools
         static Material mClothRed, mClothBone, mBone, mClothGreen, mClothOchre, mClothBlue, mClothWhite;
         static Material mLeaf, mLeafDark, mBark, mGrass, mCabbage, mPumpkin, mFlower, mThorn, mSoil, mGold;
         static Material mOgreSkin, mOgreSkinTrue, mOgreEyes, mOgreEyesTrue, mHide, mTunic, mApron;
-        static Material mSkin, mSleeve, mSteel, mSkyLie, mSkyTrue, gSunLie, gSunTrue, gStair;
+        static Material mSkin, mSleeve, mSteel, gStair, gDaylight, gGlowworm, gCeilEmbers;
+        static Material mLavaLie, mLavaTrue, mMushStalk, mMushCap, mMushGill;
         static Material pFire, pSmoke, pEmbers, pDust, pHaze, pGold;
 
         [MenuItem("False Paradise/Build Zone 2 (Ogre Village)")]
@@ -224,9 +281,11 @@ namespace FalseParadise.EditorTools
                 var world = new GameObject("Zone2_OgreVillage").transform;
                 ReserveSpots();
 
-                EditorUtility.DisplayProgressBar("Zone 2", "Рельеф каньона", 0.15f);
+                EditorUtility.DisplayProgressBar("Zone 2", "Рельеф пещеры, свод, расселина", 0.15f);
                 BuildTerrain(world);
+                BuildCeiling(world);
                 BuildBounds(world);
+                var lavaKey = BuildLava(world);
 
                 EditorUtility.DisplayProgressBar("Zone 2", "Хижины, кузница, огороды", 0.35f);
                 BuildHuts(world);
@@ -244,10 +303,9 @@ namespace FalseParadise.EditorTools
                 BuildOgres(world, choiceStairs);
                 BuildItems(world);
 
-                EditorUtility.DisplayProgressBar("Zone 2", "Небо, свет, атмосфера", 0.88f);
+                EditorUtility.DisplayProgressBar("Zone 2", "Свет, атмосфера", 0.88f);
                 var cam = BuildPlayer();
-                var sun = BuildSky(world);
-                BuildAtmosphere(cam, sun);
+                BuildAtmosphere(cam, lavaKey);
                 BuildNarration(world);
 
                 EditorUtility.DisplayProgressBar("Zone 2", "Сохранение", 0.96f);
@@ -335,11 +393,20 @@ namespace FalseParadise.EditorTools
             mSleeve = Lit("Z2_HeroSleeve", new Color(0.3f, 0.26f, 0.32f));
             mSteel = Lit("Z2_Steel", new Color(0.42f, 0.44f, 0.48f), 0f, 0.45f, 0.7f);
 
-            mSkyLie = SkyMat("Z2_SkyIllusion");
-            mSkyTrue = SkyMat("Z2_SkyTruth");
-            gSunLie = Glow("Z2_SunIllusion", Color.white, 1.2f);
-            gSunTrue = Glow("Z2_SunTruth", Color.white, 1.4f);
-            gStair = Glow("Z2_StairBeam", new Color(1f, 0.85f, 0.55f), 0.5f);
+            gStair = ShaftMaterial("Z2_StairBeam", new Color(1f, 0.93f, 0.8f), 0.7f);
+            gDaylight = Glow("Z2_Daylight", new Color(0.9f, 0.95f, 1f), 3f);
+            gGlowworm = Glow("Z2_Glowworm", new Color(0.62f, 1f, 0.86f), 2.2f);
+            gCeilEmbers = Glow("Z2_CeilEmbers", new Color(1f, 0.25f, 0.08f), 1.8f);
+
+            // Лава: альбедо = карта свечения (корка тёмная, трещины горят). Глас — кровавая, Око — тёплое золото очага
+            var lava = TextureKit.Lava();
+            mLavaLie = LavaMat("Z2_LavaIllusion", lava, new Color(1f, 0.16f, 0.06f) * 5f);
+            mLavaTrue = LavaMat("Z2_LavaTruth", lava, new Color(1f, 0.62f, 0.3f) * 4.2f);
+            mMushStalk = Lit("Z2_MushStalk", new Color(0.74f, 0.68f, 0.6f), 0f, 0.25f);
+            TextureKit.Apply(mMushStalk, rock, 2.5f, 0.6f);
+            mMushCap = Lit("Z2_MushCap", new Color(0.46f, 0.28f, 0.3f), 0f, 0.35f);
+            TextureKit.Apply(mMushCap, rock, 1.5f, 0.8f);
+            mMushGill = Lit("Z2_MushGill", new Color(0.7f, 0.42f, 0.26f), 0.22f, 0.2f);
 
             pFire = Soft("Z2_Fire", new Color(1f, 0.45f, 0.12f), 2.2f, true, 1.4f);
             pSmoke = Soft("Z2_Smoke", new Color(0.4f, 0.36f, 0.34f, 0.12f), 1f, false, 2.6f);
@@ -407,14 +474,30 @@ namespace FalseParadise.EditorTools
             return m;
         }
 
-        static Material SkyMat(string name)
+        static Material LavaMat(string name, TextureKit.Pair tex, Color emission)
+        {
+            var m = Lit(name, Color.white, 0f, 0.55f);
+            TextureKit.Apply(m, tex, 0.45f, 1f);
+            m.EnableKeyword("_EMISSION");
+            m.SetTexture("_EmissionMap", tex.albedo);
+            m.SetColor("_EmissionColor", emission);
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        /// <summary>Луч: FalseParadise/LightShaft — грани ребром и пересечения с геометрией растворяются.</summary>
+        static Material ShaftMaterial(string name, Color c, float intensity)
         {
             string path = $"{MatDir}/{name}.mat";
-            var shader = Shader.Find("FalseParadise/SkyDome") ?? Shader.Find("Universal Render Pipeline/Unlit");
+            var shader = Shader.Find("FalseParadise/LightShaft") ?? Shader.Find("FalseParadise/UnlitGlow");
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (m == null) { m = new Material(shader); AssetDatabase.CreateAsset(m, path); }
             m.shader = shader;
-            if (m.HasProperty("_Intensity")) m.SetFloat("_Intensity", 1f);
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            if (m.HasProperty("_Intensity")) m.SetFloat("_Intensity", intensity);
+            if (m.HasProperty("_EdgePower")) m.SetFloat("_EdgePower", 1.8f);
+            if (m.HasProperty("_SoftDistance")) m.SetFloat("_SoftDistance", 2f);
             EditorUtility.SetDirty(m);
             return m;
         }
@@ -546,6 +629,227 @@ namespace FalseParadise.EditorTools
             float dx = Height(x + e, z) - Height(x - e, z);
             float dz = Height(x, z + e) - Height(x, z - e);
             return new Vector3(-dx, 2f * e, -dz).normalized;
+        }
+
+        // ---------------------------------------------------------------- свод пещеры
+
+        /// <summary>
+        /// Свод над деревней, расселиной и крепостью; сталактиты; на своде — светлячки (правда, Око) или
+        /// тлеющие багровые искры (иллюзия); шахта к дневному свету над лестницей.
+        /// </summary>
+        static void BuildCeiling(Transform world)
+        {
+            var root = new GameObject("Ceiling").transform;
+            root.SetParent(world, false);
+            int nx = Mathf.RoundToInt((MaxX - MinX) / Cell) + 1;
+            int nz = Mathf.RoundToInt((MaxZ - MinZ) / Cell) + 1;
+            var pos = new Vector3[nx, nz];
+            var cs = new float[nx, nz];
+            var hs = new float[nx, nz];
+            for (int ix = 0; ix < nx; ix++)
+            for (int iz = 0; iz < nz; iz++)
+            {
+                float x = MinX + ix * Cell + (Hash(ix, iz, 4) - 0.5f) * Cell * 0.7f;
+                float z = MinZ + iz * Cell + (Hash(ix, iz, 5) - 0.5f) * Cell * 0.7f;
+                pos[ix, iz] = new Vector3(x, CeilingH(x, z), z);
+                cs[ix, iz] = CeilSdf(x, z);
+                hs[ix, iz] = ShaftSdf(x, z);
+            }
+            var mats = new[] { mCliffHigh, mRockDark };
+            var chunks = new Dictionary<Vector2Int, LowPolyMesh>();
+            for (int ix = 0; ix < nx - 1; ix++)
+            for (int iz = 0; iz < nz - 1; iz++)
+            {
+                float minD = Mathf.Min(Mathf.Min(cs[ix, iz], cs[ix + 1, iz]), Mathf.Min(cs[ix, iz + 1], cs[ix + 1, iz + 1]));
+                if (minD > 7f) continue;
+                float minHole = Mathf.Min(Mathf.Min(hs[ix, iz], hs[ix + 1, iz]), Mathf.Min(hs[ix, iz + 1], hs[ix + 1, iz + 1]));
+                if (minHole < 1.2f) continue; // шахта: край прячет юбка трубы
+                var key = new Vector2Int(ix / ChunkCells, iz / ChunkCells);
+                if (!chunks.TryGetValue(key, out var lp)) chunks[key] = lp = new LowPolyMesh(mats.Length);
+                int sub = Hash(ix, iz, 6) < 0.3f ? 1 : 0;
+                var p00 = pos[ix, iz]; var p10 = pos[ix + 1, iz]; var p01 = pos[ix, iz + 1]; var p11 = pos[ix + 1, iz + 1];
+                if (Hash(ix, iz, 7) < 0.5f) { lp.Tri(sub, p00, p01, p11, Vector3.down); lp.Tri(sub, p00, p11, p10, Vector3.down); }
+                else { lp.Tri(sub, p00, p01, p10, Vector3.down); lp.Tri(sub, p10, p01, p11, Vector3.down); }
+            }
+            foreach (var kv in chunks)
+            {
+                var go = Z.MeshObject($"Vault_{kv.Key.x}_{kv.Key.y}", root, Register(kv.Value.ToMesh($"Z2_Vault_{kv.Key.x}_{kv.Key.y}")), mats, false);
+                go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+            }
+
+            // Сталактиты группами
+            var st = new LowPolyMesh(2);
+            var r = new System.Random(77);
+            float Rr(float a, float b) => a + (float)r.NextDouble() * (b - a);
+            for (int i = 0; i < 260; i++)
+            {
+                float x = Rr(MinX, MaxX), z = Rr(MinZ, MaxZ);
+                if (CeilSdf(x, z) > -2f || ShaftSdf(x, z) < 4f) continue;
+                int n = r.Next(2, 5);
+                for (int k = 0; k < n; k++)
+                {
+                    float sx = x + Rr(-1.5f, 1.5f), sz = z + Rr(-1.5f, 1.5f);
+                    float len = Rr(1.2f, 5.5f) * (k == 0 ? 1.3f : 1f), w = len * Rr(0.14f, 0.22f);
+                    var m = Matrix4x4.TRS(new Vector3(sx, CeilingH(sx, sz) + 0.6f, sz), Quaternion.Euler(180f + Rr(-6f, 6f), Rr(0f, 360f), Rr(-6f, 6f)), Vector3.one);
+                    st.Lathe(Rr(0f, 1f) < 0.6f ? 0 : 1, m, new[] { 0f, len * 0.3f, len * 0.65f, len + 0.6f }, new[] { w, w * 0.68f, w * 0.33f, 0f }, r.Next(5, 8), r, 0.18f, false, 0.3f);
+                }
+            }
+            var sgo = Z.MeshObject("Stalactites", root, Register(st.ToMesh("Z2_Stalactites")), new[] { mCliffHigh, mRockDark }, false);
+            sgo.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+
+            // Свечение на своде: правда — светлячки скоплениями, иллюзия — редкие тлеющие багровые искры
+            var tru = new GlowPointsMesh();
+            var lie = new GlowPointsMesh();
+            for (int i = 0; i < 5200 && tru.Count < 16000; i++)
+            {
+                float x = Rr(MinX, MaxX), z = Rr(MinZ, MaxZ);
+                if (CeilSdf(x, z) > -1.5f || ShaftSdf(x, z) < 3f) continue;
+                if (Noise(x, z, 0.07f, 3700f) < 0.46f) continue;
+                var q = new Vector3(x, CeilingH(x, z) - 0.25f, z);
+                float b = Mathf.Pow(Rr(0f, 1f), 2f);
+                tru.PointFlat(q, 0.07f + b * 0.12f, new Color(0.55f, 1f, 0.85f) * (0.35f + b * 0.8f), Rr(0f, 360f));
+                if (r.Next(5) == 0) lie.PointFlat(q, 0.06f + b * 0.1f, new Color(1f, 0.22f, 0.06f) * (0.3f + b * 0.6f), Rr(0f, 360f));
+            }
+            var glow = new GameObject("VaultGlow");
+            glow.transform.SetParent(root, false);
+            var lieGo = new GameObject("Illusion");
+            lieGo.transform.SetParent(glow.transform, false);
+            lieGo.AddComponent<MeshFilter>().sharedMesh = Register(lie.ToMesh("Z2_VaultEmbers"));
+            lieGo.AddComponent<MeshRenderer>().sharedMaterial = gCeilEmbers;
+            var truGo = new GameObject("Truth");
+            truGo.transform.SetParent(glow.transform, false);
+            truGo.AddComponent<MeshFilter>().sharedMesh = Register(tru.ToMesh("Z2_VaultGlowworms"));
+            truGo.AddComponent<MeshRenderer>().sharedMaterial = gGlowworm;
+            truGo.SetActive(false);
+            var iv = glow.AddComponent<IllusionVisual>();
+            SetRef(iv, "illusionModel", lieGo);
+            SetRef(iv, "truthModel", truGo);
+
+            // Шахта над лестницей: каменная труба вверх и юбка, закрывающая рваный край свода
+            var rim = new LowPolyMesh(2);
+            const int seg = 28;
+            float[] ringH = { -1.5f, 5f, 12f, 22f, 36f };
+            float[] ringR = { 0f, 0.4f, 1f, 1.8f, 2.8f };
+            var pts = new Vector3[ringH.Length + 1, seg];
+            var hc = new Vector3(ShaftC.x, 0f, ShaftC.y);
+            for (int j = 0; j < seg; j++)
+            {
+                float a = j * Mathf.PI * 2f / seg;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                float baseR = ShaftR + 0.6f + Rr(-0.5f, 0.5f);
+                var e = hc + dir * baseR;
+                float ceil = CeilingH(e.x, e.z);
+                var outer = hc + dir * (ShaftR + 4.5f);
+                pts[0, j] = new Vector3(outer.x, CeilingH(outer.x, outer.z) - 0.35f, outer.z);
+                for (int k = 0; k < ringH.Length; k++)
+                {
+                    var q = hc + dir * (baseR + ringR[k] + Rr(-0.4f, 0.4f));
+                    pts[k + 1, j] = new Vector3(q.x, ceil + ringH[k] + Rr(-0.3f, 0.3f), q.z);
+                }
+            }
+            for (int k = 0; k < ringH.Length; k++)
+            for (int j = 0; j < seg; j++)
+            {
+                int j1 = (j + 1) % seg;
+                var a = pts[k, j]; var b = pts[k, j1]; var c = pts[k + 1, j1]; var d = pts[k + 1, j];
+                var mid = (a + b + c + d) * 0.25f;
+                var outDir = k == 0 ? Vector3.down : (hc - new Vector3(mid.x, 0f, mid.z)).normalized;
+                int sub = Hash(j, k, 11) < 0.35f ? 1 : 0;
+                rim.Tri(sub, a, b, c, outDir);
+                rim.Tri(sub, a, c, d, outDir);
+            }
+            var rimGo = Z.MeshObject("Shaft", root, Register(rim.ToMesh("Z2_Shaft")), new[] { mCliffHigh, mRockDark }, false);
+            rimGo.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        /// <summary>Небесный диск для шахты: яркий центр, мягкий край (UnlitGlow), виден с обеих сторон.</summary>
+        static Mesh SkyDisc(string name, float radius)
+        {
+            var v = new List<Vector3> { Vector3.zero };
+            var c = new List<Color> { new Color(1f, 1f, 1f, 1f) };
+            var t = new List<int>();
+            const int seg = 32;
+            float[] rings = { 0.45f, 1f };
+            Color[] cols = { new Color(0.8f, 0.88f, 1f, 0.8f), new Color(0.6f, 0.75f, 1f, 0f) };
+            for (int k = 0; k < rings.Length; k++)
+            for (int i = 0; i < seg; i++)
+            {
+                float a = i * Mathf.PI * 2f / seg;
+                v.Add(new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * radius * rings[k]);
+                c.Add(cols[k]);
+            }
+            for (int i = 0; i < seg; i++)
+            {
+                int i1 = (i + 1) % seg;
+                t.AddRange(new[] { 0, 1 + i1, 1 + i, 0, 1 + i, 1 + i1 });
+                int a0 = 1 + i, a1 = 1 + i1, b0 = a0 + seg, b1 = a1 + seg;
+                t.AddRange(new[] { a0, a1, b1, a0, b1, b0, a0, b1, a1, a0, b0, b1 });
+            }
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(v);
+            mesh.SetColors(c);
+            mesh.SetTriangles(t, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        // ---------------------------------------------------------------- лавовая расселина
+
+        /// <summary>
+        /// Расселина с лавой между деревней и крепостью (под естественным мостом дороги). Лава — двойной объект:
+        /// Глас — кровавая, Око — тёплое золото. Свет снизу на стены и свод, искры, жаркая дымка.
+        /// Возвращает главный свет лавы (TruthMood меняет его цвет как «солнце» зоны).
+        /// </summary>
+        static Light BuildLava(Transform world)
+        {
+            var root = new GameObject("LavaFissure").transform;
+            root.SetParent(world, false);
+            var lp = new LowPolyMesh(1);
+            const float dx = 1.5f;
+            const int across = 8;
+            Vector3 P(float xx, float t)
+            {
+                float zz = FissureZ(xx) + t * (FissureW(xx) + 1f);
+                return new Vector3(xx, LavaY + (Noise(xx, zz, 0.5f, 3800f) - 0.5f) * 0.25f, zz);
+            }
+            for (float x = 6f; x < 90f; x += dx)
+            for (int j = 0; j < across; j++)
+            {
+                float t0 = -1f + 2f * j / across, t1 = -1f + 2f * (j + 1) / across;
+                var a = P(x, t0); var b = P(x + dx, t0); var c = P(x + dx, t1); var d = P(x, t1);
+                lp.Tri(0, a, b, c, Vector3.up);
+                lp.Tri(0, a, c, d, Vector3.up);
+            }
+            var mesh = Register(lp.ToMesh("Z2_Lava"));
+            var dual = DualObject("Lava", root, Vector3.zero, Quaternion.identity, mesh, new[] { mLavaLie }, mesh, new[] { mLavaTrue });
+            foreach (var mr in dual.GetComponentsInChildren<MeshRenderer>(true)) mr.shadowCastingMode = ShadowCastingMode.Off;
+
+            // Свет лавы вдоль русла (под мостом — нет: там скала)
+            for (float x = 12f; x < 86f; x += 9f)
+            {
+                if (Mathf.Abs(x - 44f) < 7f) continue;
+                var l = Z.PointLight(root, "LavaLight", new Vector3(x, LavaY + 2.5f, FissureZ(x)), new Color(1f, 0.4f, 0.15f), 30f, 45f);
+                l.shadows = LightShadows.None;
+                var fl = l.gameObject.AddComponent<TorchFlicker>();
+                SetFloat(fl, "baseIntensity", 45f);
+                SetFloat(fl, "flickerAmount", 5f);
+                warmLights.Add(l);
+            }
+            var key = Z.PointLight(root, "LavaKey", new Vector3(36f, 16f, 42f), new Color(1f, 0.3f, 0.12f), 90f, 420f);
+            ShadowLight(key);
+
+            // Искры и жар над лавой
+            for (float x0 = 10f; x0 < 84f; x0 += 24f)
+            {
+                var e = new GameObject("Embers");
+                e.transform.SetParent(root, false);
+                e.transform.position = new Vector3(x0 + 12f, LavaY + 0.5f, FissureZ(x0 + 12f));
+                var ps = Z.Particles(e, pEmbers, 28f, 3f, 6f, 0.4f, 1.3f, 0.03f, 0.07f,
+                    new Color(1f, 0.7f, 0.3f), new Color(1f, 0.35f, 0.08f), -0.06f, 140, Z.FadeCurve(), 0.6f);
+                Z.ShapeBox(ps, new Vector3(24f, 0.5f, 6f));
+            }
+            return key;
         }
 
         // ---------------------------------------------------------------- хижины огров
@@ -871,7 +1175,7 @@ namespace FalseParadise.EditorTools
             Fire(root, f + Vector3.up * 0.2f, 1f);
 
             // Фонари на столбах вдоль троп
-            var lanternSpots = new[] { new Vector2(-8f, 5f), new Vector2(8f, 9f), new Vector2(18f, -14f), new Vector2(36f, -6f), new Vector2(44f, 6f), new Vector2(40f, 24f), new Vector2(20f, 18f) };
+            var lanternSpots = new[] { new Vector2(-31f, 6.2f), new Vector2(-22f, -0.6f), new Vector2(-14f, 5.6f), new Vector2(-8f, 5f), new Vector2(8f, 9f), new Vector2(18f, -14f), new Vector2(36f, -6f), new Vector2(44f, 6f), new Vector2(40f, 24f), new Vector2(20f, 18f) };
             foreach (var s in lanternSpots) Lantern(root, Ground(s));
 
             // Иллюзия: красные военные знамёна на въезде; правда: гирлянда флажков
@@ -922,7 +1226,7 @@ namespace FalseParadise.EditorTools
             col.center = new Vector3(0f, 1.4f, 0f);
             col.radius = 0.12f;
             col.height = 3f;
-            var l = Z.PointLight(t, "Light", t.TransformPoint(new Vector3(0.65f, 2.3f, 0f)), new Color(1f, 0.66f, 0.36f), 9f, 4f);
+            var l = Z.PointLight(t, "Light", t.TransformPoint(new Vector3(0.65f, 2.3f, 0f)), new Color(1f, 0.66f, 0.36f), 11f, 6f);
             l.shadows = LightShadows.None;
             warmLights.Add(l);
         }
@@ -1142,12 +1446,34 @@ namespace FalseParadise.EditorTools
             var go = Z.MeshObject("Steps", root.transform, Register(lp.ToMesh("Z2_StairsToLight")), new[] { mGold }, true);
             go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             var topP = new Vector3(FortMaxX + steps * 0.9f, FortH + steps * 0.62f, 88f);
-            var l = Z.PointLight(root.transform, "Light", topP + Vector3.up * 2f, new Color(1f, 0.86f, 0.6f), 40f, 30f);
+            var l = Z.PointLight(root.transform, "Light", topP + Vector3.up * 2f, new Color(1f, 0.9f, 0.72f), 30f, 18f);
             l.shadows = LightShadows.None;
+            // Шахта в своде над лестницей: сверху — дневное небо и прямой дневной свет
+            float holeY = CeilingH(ShaftC.x, ShaftC.y);
+            var sky = new GameObject("DaylightSky");
+            sky.transform.SetParent(root.transform, false);
+            sky.transform.position = new Vector3(ShaftC.x, holeY + 34f, ShaftC.y);
+            sky.transform.rotation = Quaternion.LookRotation(Vector3.down);
+            sky.AddComponent<MeshFilter>().sharedMesh = Register(SkyDisc("Z2_DaylightDisc", 22f));
+            var skr = sky.AddComponent<MeshRenderer>();
+            skr.sharedMaterial = gDaylight;
+            skr.shadowCastingMode = ShadowCastingMode.Off;
+            var day = new GameObject("DaylightSpot").AddComponent<Light>();
+            day.transform.SetParent(root.transform, false);
+            day.transform.position = new Vector3(ShaftC.x - 2f, holeY + 18f, ShaftC.y);
+            day.transform.rotation = Quaternion.LookRotation(new Vector3(-0.35f, -1f, 0f));
+            day.type = LightType.Spot;
+            day.color = new Color(1f, 0.96f, 0.88f);
+            day.range = 70f;
+            day.spotAngle = 52f;
+            day.innerSpotAngle = 20f;
+            day.intensity = 900f;
+            day.shadows = LightShadows.None;
             var beam = new GameObject("Beam");
             beam.transform.SetParent(root.transform, false);
-            beam.transform.position = topP + Vector3.up * 60f;
-            beam.AddComponent<MeshFilter>().sharedMesh = Register(Z.ShaftMesh("Z2_StairBeam", 3f, 5f, 62f, 6, 0.5f));
+            beam.transform.position = new Vector3(ShaftC.x, holeY + 14f, ShaftC.y);
+            beam.transform.rotation = Quaternion.FromToRotation(Vector3.down, new Vector3(-0.35f, -1f, 0f).normalized);
+            beam.AddComponent<MeshFilter>().sharedMesh = Register(Z.ShaftMesh("Z2_StairBeam", ShaftR * 0.8f, ShaftR * 1.6f, holeY + 14f - FortH, 7, 0.32f));
             var mr = beam.AddComponent<MeshRenderer>();
             mr.sharedMaterial = gStair;
             mr.shadowCastingMode = ShadowCastingMode.Off;
@@ -1157,6 +1483,12 @@ namespace FalseParadise.EditorTools
             var ps = Z.Particles(motes, pGold, 30f, 3f, 6f, 0.1f, 0.4f, 0.04f, 0.09f,
                 new Color(1f, 0.9f, 0.6f), new Color(1f, 0.75f, 0.4f), -0.02f, 150, Z.FadeCurve(), 0.5f);
             Z.ShapeBox(ps, new Vector3(32f, 24f, 6f));
+            var dmotes = new GameObject("ShaftMotes");
+            dmotes.transform.SetParent(root.transform, false);
+            dmotes.transform.position = new Vector3(ShaftC.x, holeY - 4f, ShaftC.y);
+            var dps = Z.Particles(dmotes, pDust, 20f, 6f, 10f, 0f, 0.05f, 0.03f, 0.06f,
+                new Color(1f, 0.97f, 0.9f, 0.8f), new Color(1f, 0.9f, 0.75f, 0.6f), 0.002f, 160, Z.FadeCurve(), 0.1f);
+            Z.ShapeBox(dps, new Vector3(ShaftR * 2f, 22f, ShaftR * 2f));
             root.SetActive(false);
             return root;
         }
@@ -1168,7 +1500,7 @@ namespace FalseParadise.EditorTools
             var root = new GameObject("Nature").transform;
             root.SetParent(world, false);
             var rocks = new LowPolyMesh(2);
-            var trees = new LowPolyMesh(3); // 0 кора, 1 листва, 2 тёмная листва
+            var trees = new LowPolyMesh(3); // гигантские грибы: 0 ножка, 1 шляпка, 2 светящиеся пластинки
             var grass = new LowPolyMesh(1);
             const float step = 2.5f;
             for (float gx = MinX; gx < MaxX; gx += step)
@@ -1185,13 +1517,13 @@ namespace FalseParadise.EditorTools
                 if (d > (nearPath ? -0.3f : -2f) && d < 4f && R01() < 0.45f && !InFort(x, z, 6f))
                     Boulder(rocks, p, nearPath ? R(0.8f, 2f) : R(1.2f, 3.6f));
                 if (d < -2f && d > -9f && !res && trail > 3f && PathDist(x, z) > 4f && R01() < 0.07f && !InFort(x, z, 8f))
-                    Tree(trees, p, R(5f, 9f));
-                if (d < -0.5f && !res && trail > 1.4f && !InFort(x, z, 1f) && R01() < 0.55f)
+                    Mushroom(trees, p, R(2.6f, 6.5f));
+                if (d < -0.5f && !res && trail > 1.4f && !InFort(x, z, 1f) && R01() < 0.35f)
                     Tuft(grass, p, R(0.25f, 0.6f));
             }
             var rgo = Z.MeshObject("Rocks", root, Register(rocks.ToMesh("Z2_Rocks")), new[] { mRock, mRockDark }, true);
             GameObjectUtility.SetStaticEditorFlags(rgo, StaticEditorFlags.BatchingStatic);
-            var tgo = Z.MeshObject("Trees", root, Register(trees.ToMesh("Z2_Trees")), new[] { mBark, mLeaf, mLeafDark }, true);
+            var tgo = Z.MeshObject("Trees", root, Register(trees.ToMesh("Z2_Mushrooms")), new[] { mMushStalk, mMushCap, mMushGill }, true);
             GameObjectUtility.SetStaticEditorFlags(tgo, StaticEditorFlags.BatchingStatic);
             var ggo = Z.MeshObject("Grass", root, Register(grass.ToMesh("Z2_Grass")), new[] { mGrass }, false);
             ggo.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
@@ -1205,17 +1537,26 @@ namespace FalseParadise.EditorTools
             lp.Lathe(R01() < 0.35f ? 1 : 0, m, new[] { -0.3f, 0.25f, 0.7f, 1f }, new[] { 0.85f, 1f, 0.7f, 0.25f }, rng.Next(6, 9), rng, 0.25f);
         }
 
-        static void Tree(LowPolyMesh lp, Vector3 p, float h)
+        /// <summary>Гигантский пещерный гриб: ножка, плоская шляпка, тёплое свечение пластинок снизу.</summary>
+        static void Mushroom(LowPolyMesh lp, Vector3 p, float h)
         {
-            var m = Matrix4x4.TRS(p + Vector3.down * 0.3f, Quaternion.Euler(R(-4f, 4f), R(0f, 360f), R(-4f, 4f)), Vector3.one);
-            lp.Lathe(0, m, new[] { 0f, h * 0.35f, h * 0.75f }, new[] { h * 0.055f, h * 0.04f, h * 0.025f }, 7, rng, 0.1f, false, 0.3f);
-            int blobs = rng.Next(4, 7);
-            for (int i = 0; i < blobs; i++)
+            var m = Matrix4x4.TRS(p + Vector3.down * 0.3f, Quaternion.Euler(R(-8f, 8f), R(0f, 360f), R(-8f, 8f)), Vector3.one);
+            float w = h * R(0.06f, 0.09f);
+            lp.Lathe(0, m, new[] { 0f, 0.3f, h * 0.5f, h }, new[] { w * 1.6f, w, w * 0.85f, w * 0.9f }, 8, rng, 0.08f, false, 0.4f);
+            float cr = h * R(0.38f, 0.55f);
+            var cm = m * Matrix4x4.TRS(new Vector3(0f, h, 0f), Quaternion.Euler(R(-6f, 6f), 0f, R(-6f, 6f)), Vector3.one);
+            lp.Lathe(1, cm, new[] { -0.05f, cr * 0.18f, cr * 0.4f, cr * 0.5f }, new[] { cr, cr * 0.92f, cr * 0.55f, 0f }, 11, rng, 0.06f);
+            lp.Lathe(2, cm, new[] { -0.06f, -0.04f }, new[] { cr * 0.97f, w * 1.1f }, 11, null, 0f, true);
+            // Маленькие грибы у основания
+            int n = rng.Next(1, 4);
+            for (int i = 0; i < n; i++)
             {
-                float s = h * R(0.17f, 0.26f);
-                var c = m.MultiplyPoint3x4(new Vector3(R(-0.18f, 0.18f) * h, h * R(0.55f, 0.92f), R(-0.18f, 0.18f) * h));
-                lp.Lathe(R01() < 0.5f ? 1 : 2, Matrix4x4.TRS(c, Quaternion.Euler(R(0f, 30f), R(0f, 360f), 0f), new Vector3(s, s * 0.8f, s)),
-                    new[] { -0.7f, -0.3f, 0.3f, 0.75f }, new[] { 0.3f, 0.95f, 0.85f, 0.2f }, 7, rng, 0.22f, true);
+                float hh = h * R(0.12f, 0.25f), rr = hh * 0.5f;
+                var bm = Matrix4x4.TRS(p + new Vector3(R(-1.2f, 1.2f), -0.1f, R(-1.2f, 1.2f)), Quaternion.Euler(R(-10f, 10f), R(0f, 360f), 0f), Vector3.one);
+                var top = bm * Matrix4x4.Translate(new Vector3(0f, hh, 0f));
+                lp.Lathe(0, bm, new[] { 0f, hh }, new[] { hh * 0.12f, hh * 0.1f }, 5);
+                lp.Lathe(1, top, new[] { 0f, rr * 0.4f, rr * 0.55f }, new[] { rr, rr * 0.6f, 0f }, 7, rng, 0.05f);
+                lp.Lathe(2, top, new[] { -0.02f, -0.01f }, new[] { rr * 0.95f, hh * 0.13f }, 7, null, 0f, true);
             }
         }
 
@@ -1534,205 +1875,52 @@ namespace FalseParadise.EditorTools
             return cam;
         }
 
-        /// <summary>Небо (купол с градиентом и облаками) и солнце: два облика, переключает Око.</summary>
-        static Light BuildSky(Transform world)
-        {
-            var root = new GameObject("Sky").transform;
-            var sunDir = -(SunRot * Vector3.forward);
-            var lieSky = new GameObject("Illusion");
-            lieSky.transform.SetParent(root, false);
-            var truSky = new GameObject("Truth");
-            truSky.transform.SetParent(root, false);
-            SkyObjects(lieSky.transform, false, sunDir);
-            SkyObjects(truSky.transform, true, sunDir);
-            truSky.SetActive(false);
-            var iv = root.gameObject.AddComponent<IllusionVisual>();
-            SetRef(iv, "illusionModel", lieSky);
-            SetRef(iv, "truthModel", truSky);
-
-            foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
-                if (l.type == LightType.Directional) Object.DestroyImmediate(l.gameObject);
-            var sun = new GameObject("Sun").AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.transform.rotation = SunRot;
-            sun.color = new Color(1f, 0.32f, 0.2f);
-            sun.intensity = 1.6f;
-            sun.shadows = LightShadows.Soft;
-            sun.shadowBias = 0.05f;
-            sun.shadowNormalBias = 0.5f;
-            RenderSettings.sun = sun;
-            return sun;
-        }
-
-        static void SkyObjects(Transform parent, bool truth, Vector3 sunDir)
-        {
-            var dome = new GameObject("Dome");
-            dome.transform.SetParent(parent, false);
-            dome.transform.position = new Vector3(30f, 0f, 30f);
-            dome.AddComponent<MeshFilter>().sharedMesh = Register(SkyMesh(truth, sunDir));
-            var mr = dome.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = truth ? mSkyTrue : mSkyLie;
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-
-            var sun = new GameObject("SunDisc");
-            sun.transform.SetParent(parent, false);
-            sun.transform.position = new Vector3(30f, 0f, 30f) + sunDir * 420f;
-            sun.transform.rotation = Quaternion.LookRotation(-sunDir);
-            sun.AddComponent<MeshFilter>().sharedMesh = Register(SunMesh(truth));
-            var sr = sun.AddComponent<MeshRenderer>();
-            sr.sharedMaterial = truth ? gSunTrue : gSunLie;
-            sr.shadowCastingMode = ShadowCastingMode.Off;
-        }
-
-        /// <summary>Купол неба: цвет по высоте и по углу к солнцу, слоистые облака подсвечены со стороны солнца.</summary>
-        static Mesh SkyMesh(bool truth, Vector3 sunDir)
-        {
-            const int seg = 64, rings = 24;
-            const float R = 460f;
-            var v = new List<Vector3>();
-            var c = new List<Color>();
-            var t = new List<int>();
-            Color horizonSun, horizon, mid, zenith, cloudLit, cloudDark;
-            if (truth)
-            {
-                horizonSun = new Color(1f, 0.62f, 0.32f);
-                horizon = new Color(0.86f, 0.56f, 0.52f);
-                mid = new Color(0.52f, 0.42f, 0.58f);
-                zenith = new Color(0.16f, 0.2f, 0.4f);
-                cloudLit = new Color(1f, 0.7f, 0.52f);
-                cloudDark = new Color(0.46f, 0.34f, 0.46f);
-            }
-            else
-            {
-                horizonSun = new Color(0.82f, 0.24f, 0.1f);
-                horizon = new Color(0.38f, 0.11f, 0.08f);
-                mid = new Color(0.19f, 0.07f, 0.07f);
-                zenith = new Color(0.05f, 0.025f, 0.035f);
-                cloudLit = new Color(0.75f, 0.14f, 0.06f);
-                cloudDark = new Color(0.1f, 0.02f, 0.02f);
-            }
-            for (int ri = 0; ri <= rings; ri++)
-            {
-                float el = Mathf.Lerp(-0.15f, 1f, (float)ri / rings); // синус высоты
-                float elA = Mathf.Asin(Mathf.Clamp(el, -1f, 1f));
-                for (int si = 0; si <= seg; si++)
-                {
-                    float az = si * Mathf.PI * 2f / seg;
-                    var dir = new Vector3(Mathf.Cos(az) * Mathf.Cos(elA), Mathf.Sin(elA), Mathf.Sin(az) * Mathf.Cos(elA));
-                    v.Add(dir * R);
-                    float toSun = Mathf.Max(0f, Vector3.Dot(dir, sunDir));
-                    float e = Mathf.Clamp01(el);
-                    var hor = Color.Lerp(horizon, horizonSun, Mathf.Pow(toSun, 3f));
-                    var col = e < 0.25f ? Color.Lerp(hor, mid, e / 0.25f) : Color.Lerp(mid, zenith, Mathf.Pow((e - 0.25f) / 0.75f, 0.7f));
-                    // Облака: полосы шума у горизонта и средней высоты
-                    // Шум по кругу (cos/sin азимута) — без шва на стыке купола
-                    float cx = Mathf.Cos(az), cz = Mathf.Sin(az);
-                    float n = Mathf.PerlinNoise(cx * 2.2f + 11f + e * 3f, cz * 2.2f + 5f + e * 9f) * 0.6f
-                            + Mathf.PerlinNoise(cx * 6f + 3f + e * 7f, cz * 6f + 17f + e * 22f) * 0.4f;
-                    float band = Smooth(0.02f, 0.1f, e) * (1f - Smooth(0.35f, 0.6f, e));
-                    float cloud = Smooth(0.5f, 0.68f, n) * band;
-                    var cc = Color.Lerp(cloudDark, cloudLit, Mathf.Pow(toSun, 2f) * 0.8f + 0.2f * (1f - e));
-                    col = Color.Lerp(col, cc, cloud * 0.85f);
-                    // Свечение вокруг солнца
-                    col += (truth ? new Color(1f, 0.75f, 0.45f) : new Color(0.9f, 0.2f, 0.08f)) * Mathf.Pow(toSun, 24f) * 0.9f;
-                    if (el < 0f) col = Color.Lerp(col, hor * 0.6f, Smooth(0f, -0.15f, el));
-                    c.Add(col);
-                }
-            }
-            for (int ri = 0; ri < rings; ri++)
-            for (int si = 0; si < seg; si++)
-            {
-                int a = ri * (seg + 1) + si, b = a + 1, d = a + seg + 1, e2 = d + 1;
-                t.Add(a); t.Add(d); t.Add(b);
-                t.Add(b); t.Add(d); t.Add(e2);
-            }
-            var mesh = new Mesh { name = truth ? "Z2_SkyTruth" : "Z2_SkyIllusion" };
-            mesh.indexFormat = IndexFormat.UInt32;
-            mesh.SetVertices(v);
-            mesh.SetColors(c);
-            mesh.SetTriangles(t, 0);
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        static Mesh SunMesh(bool truth)
-        {
-            var v = new List<Vector3> { Vector3.zero };
-            var core = truth ? new Color(1f, 0.92f, 0.72f, 1f) : new Color(0.95f, 0.25f, 0.1f, 1f);
-            var halo = truth ? new Color(1f, 0.7f, 0.4f, 0.4f) : new Color(0.7f, 0.1f, 0.04f, 0.35f);
-            var c = new List<Color> { core };
-            var t = new List<int>();
-            const int seg = 32;
-            float r = truth ? 14f : 18f;
-            float[] radii = { r, r * 1.08f, r * 3.5f };
-            Color[] cols = { core, halo, new Color(halo.r, halo.g, halo.b, 0f) };
-            for (int k = 0; k < 3; k++)
-                for (int i = 0; i < seg; i++)
-                {
-                    float a = i * Mathf.PI * 2f / seg;
-                    v.Add(new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * radii[k]);
-                    c.Add(cols[k]);
-                }
-            for (int i = 0; i < seg; i++)
-            {
-                int i1 = (i + 1) % seg;
-                t.Add(0); t.Add(1 + i1); t.Add(1 + i);
-                for (int k = 0; k < 2; k++)
-                {
-                    int a0 = 1 + k * seg + i, a1 = 1 + k * seg + i1, b0 = a0 + seg, b1 = a1 + seg;
-                    t.Add(a0); t.Add(a1); t.Add(b1);
-                    t.Add(a0); t.Add(b1); t.Add(b0);
-                }
-            }
-            var mesh = new Mesh { name = truth ? "Z2_SunTruth" : "Z2_SunIllusion" };
-            mesh.SetVertices(v);
-            mesh.SetColors(c);
-            mesh.SetTriangles(t, 0);
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
         static void BuildAtmosphere(Camera cam, Light sun)
         {
-            var lieFog = new Color(0.24f, 0.1f, 0.09f);
-            var lieAmbient = new Color(0.27f, 0.17f, 0.17f);
+            // Подземелье: свет снизу от лавы, тёмный свод; туман ExponentialSquared прячет дальние стены
+            var lieFog = new Color(0.12f, 0.045f, 0.035f);
+            var lieAmbient = new Color(0.26f, 0.15f, 0.13f);
+            foreach (var dl in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+                if (dl.type == LightType.Directional) Object.DestroyImmediate(dl.gameObject);
+            RenderSettings.sun = null;
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = lieAmbient;
-            RenderSettings.ambientEquatorColor = new Color(0.24f, 0.17f, 0.16f);
-            RenderSettings.ambientGroundColor = new Color(0.1f, 0.08f, 0.07f);
+            RenderSettings.ambientEquatorColor = new Color(0.22f, 0.14f, 0.12f);
+            RenderSettings.ambientGroundColor = new Color(0.12f, 0.08f, 0.07f);
             RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.011f;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = 0.014f;
             RenderSettings.fogColor = lieFog;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.reflectionIntensity = 0f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = lieFog;
-            cam.farClipPlane = 1000f;
+            cam.farClipPlane = 300f;
 
-            // Иллюзия: кровавый закат и багровые факелы. Правда: мягкий золотой закат
+            // Иллюзия: кровавая лава и багровые факелы. Правда: тёплый очаг горы
             var mood = new GameObject("TruthMood").AddComponent<TruthMood>();
             var so = new SerializedObject(mood);
             so.FindProperty("illusionAmbient").colorValue = lieAmbient;
             so.FindProperty("illusionFog").colorValue = lieFog;
             so.FindProperty("illusionTorch").colorValue = new Color(1f, 0.3f, 0.15f);
-            so.FindProperty("truthAmbient").colorValue = new Color(0.4f, 0.34f, 0.4f);
-            so.FindProperty("truthFog").colorValue = new Color(0.72f, 0.52f, 0.46f);
+            so.FindProperty("truthAmbient").colorValue = new Color(0.36f, 0.29f, 0.24f);
+            so.FindProperty("truthFog").colorValue = new Color(0.2f, 0.13f, 0.08f);
             so.FindProperty("truthTorch").colorValue = new Color(1f, 0.72f, 0.42f);
+            // «Солнце» зоны — главный свет лавы
             so.FindProperty("sun").objectReferenceValue = sun;
-            so.FindProperty("illusionSun").colorValue = new Color(1f, 0.42f, 0.3f);
-            so.FindProperty("truthSun").colorValue = new Color(1f, 0.74f, 0.5f);
-            so.FindProperty("illusionSunIntensity").floatValue = 2.35f;
-            so.FindProperty("truthSunIntensity").floatValue = 2.75f;
+            so.FindProperty("illusionSun").colorValue = new Color(1f, 0.26f, 0.1f);
+            so.FindProperty("truthSun").colorValue = new Color(1f, 0.64f, 0.34f);
+            so.FindProperty("illusionSunIntensity").floatValue = sun != null ? sun.intensity : 1f;
+            so.FindProperty("truthSunIntensity").floatValue = sun != null ? sun.intensity * 1.15f : 1f;
             var list = so.FindProperty("torches");
             list.arraySize = warmLights.Count;
             for (int i = 0; i < warmLights.Count; i++) list.GetArrayElementAtIndex(i).objectReferenceValue = warmLights[i];
             so.ApplyModifiedPropertiesWithoutUndo();
 
             var haze = new GameObject("Haze").transform;
-            RuinKit.Haze(haze, "ValleyHaze", Ground(Village.c, 3f), new Vector3(56f, 5f, 56f), pHaze, new Color(0.62f, 0.46f, 0.42f, 0.035f), 26, 10f, 16f);
+            RuinKit.Haze(haze, "ValleyHaze", Ground(Village.c, 3f), new Vector3(56f, 5f, 56f), pHaze, new Color(0.45f, 0.26f, 0.2f, 0.035f), 26, 10f, 16f);
+            RuinKit.Haze(haze, "FissureHaze", new Vector3(47f, LavaY + 3f, 42f), new Vector3(70f, 5f, 10f), pHaze, new Color(0.9f, 0.32f, 0.12f, 0.04f), 22, 8f, 14f);
             RuinKit.Probe(haze, Ground(Village.c, 4f), new Vector3(64f, 24f, 64f), 1f);
             RuinKit.Probe(haze, new Vector3(44f, FortH + 4f, 84f), new Vector3(26f, 12f, 22f), 1f);
 
@@ -1762,7 +1950,7 @@ namespace FalseParadise.EditorTools
             vignette.intensity.Override(0.28f);
             vignette.smoothness.Override(0.45f);
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.Override(0.55f);
+            color.postExposure.Override(1.05f);
             color.contrast.Override(18f);
             color.saturation.Override(-4f);
             var lgg = profile.Add<LiftGammaGain>(true);

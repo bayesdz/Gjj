@@ -24,6 +24,11 @@ namespace FalseParadise.EditorTools
             new Shot("10_courtyard", 44f, 60f, 44f, 80f, 3f),
             new Shot("11_throne", 44f, 76f, 44f, 90f, 1.5f),
             new Shot("12_throne_truth", 44f, 76f, 44f, 90f, 1.5f, true),
+            new Shot("13_lava_bridge", 44f, 26f, 44f, 56f, 3f),
+            new Shot("14_lava_bridge_truth", 44f, 26f, 44f, 56f, 3f, true),
+            new Shot("15_vault_truth", 2f, -14f, 22f, 8f, 20f, true),
+            new Shot("16_fissure_from_bridge", 44f, 41f, 18f, 43f, -4f),
+            new Shot("17_fissure_from_bridge_truth", 44f, 41f, 70f, 41f, -4f, true),
         };
 
         [MenuItem("False Paradise/Zone 2 Screenshots")]

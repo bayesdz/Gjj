@@ -153,6 +153,40 @@ namespace FalseParadise.EditorTools
             return p;
         }
 
+        // ---------------------------------------------------------------- лава
+
+        /// <summary>
+        /// Лава: тёмная остывшая корка плитами (Ворони), между плитами — светящиеся трещины.
+        /// Альбедо служит и картой свечения: корка почти чёрная, трещины жёлто-оранжевые.
+        /// </summary>
+        internal static Pair Lava()
+        {
+            if (cache.TryGetValue("lava", out var p)) return p;
+            const int N = 512;
+            var h = new float[N * N];
+            var col = new Color[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (float)x / N, v = (float)y / N;
+                float wu = u + (Fbm(u, v, 4, 3, 0.5f, 400) - 0.5f) * 0.08f;
+                float wv = v + (Fbm(u, v, 4, 3, 0.5f, 410) - 0.5f) * 0.08f;
+                Worley(wu, wv, 7, 420, out float f1, out float f2, out _);
+                float edge = f2 - f1;
+                float crack = SStep(0.12f, 0.0f, edge);           // яркие швы
+                float glow = SStep(0.3f, 0.0f, edge) * 0.35f;     // ореол у швов
+                float pool = SStep(0.62f, 0.8f, Fbm(u, v, 3, 3, 0.5f, 430)); // жидкие озерца
+                float heat = Mathf.Clamp01(crack + glow + pool);
+                float crust = 0.04f + Fbm(u, v, 24, 3, 0.55f, 440) * 0.06f;
+                h[y * N + x] = (1f - heat) * (0.6f + Fbm(u, v, 16, 3, 0.5f, 450) * 0.4f);
+                var hot = Color.Lerp(new Color(0.85f, 0.18f, 0.03f), new Color(1f, 0.78f, 0.3f), Mathf.Pow(heat, 2f));
+                col[y * N + x] = Color.Lerp(new Color(crust, crust * 0.8f, crust * 0.75f), hot, heat);
+            }
+            p = Save("T_Lava", N, N, col, h, 4f, true);
+            cache["lava"] = p;
+            return p;
+        }
+
         // ---------------------------------------------------------------- кладка
 
         /// <summary>Кладка: 8 рядов блоков разной длины со швами, сколами, фасками и пятнами.</summary>

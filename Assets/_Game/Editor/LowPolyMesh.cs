@@ -252,6 +252,14 @@ namespace FalseParadise.EditorTools
             Diamond(p, fwd, up, color);
         }
 
+        /// <summary>Плоская точка (ромб в горизонтальной плоскости): для свечения на своде или полу.</summary>
+        public void PointFlat(Vector3 p, float size, Color color, float yaw)
+        {
+            var right = Quaternion.Euler(0f, yaw, 0f) * Vector3.right * size;
+            var fwd = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward * size;
+            Diamond(p, right, fwd, color);
+        }
+
         void Diamond(Vector3 p, Vector3 side, Vector3 up, Color c)
         {
             int i = verts.Count;

@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Z2_StairBeam
-  m_Shader: {fileID: 4800000, guid: 0792681cc145b3b41ae887dc788d1939, type: 3}
+  m_Shader: {fileID: 4800000, guid: ac3f5652488614742aee0d82b1d626de, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,8 +25,10 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Intensity: 0.5
+    - _EdgePower: 1.8
+    - _Intensity: 0.7
+    - _SoftDistance: 2
     m_Colors:
-    - _BaseColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+    - _BaseColor: {r: 1, g: 0.93, b: 0.8, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
