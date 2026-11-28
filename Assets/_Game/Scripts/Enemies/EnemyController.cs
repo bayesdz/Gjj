@@ -35,6 +35,8 @@ namespace FalseParadise
         [SerializeField] float attackDamage = 10f;
         [SerializeField] float attackWindup = 0.4f;
         [SerializeField] float attackCooldown = 1.4f;
+        [Tooltip("Без NavMeshAgent держаться земли на неровном полу (рельеф пещеры)")]
+        [SerializeField] bool snapToGround = true;
 
         [Header("Иллюзия")]
         [SerializeField] IllusionVisual illusion;
@@ -68,6 +70,7 @@ namespace FalseParadise
         float attackTimer;     // > 0: идёт замах
         float nextAttackTime;
         float currentSpeed;
+        readonly RaycastHit[] groundHits = new RaycastHit[8];
 
         void Awake()
         {
@@ -107,7 +110,29 @@ namespace FalseParadise
                 }
             }
 
+            if (snapToGround && agent == null && State != EnemyState.Dead) SnapToGround();
             SyncAnimators();
+        }
+
+        void SnapToGround()
+        {
+            Vector3 origin = transform.position + Vector3.up * 1.5f;
+            int n = Physics.RaycastNonAlloc(origin, Vector3.down, groundHits, 4f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            float groundY = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                var h = groundHits[i];
+                if (h.collider.transform.IsChildOf(transform)) continue;
+                if (player != null && h.collider.transform.IsChildOf(player)) continue;
+                if (h.distance >= best) continue;
+                best = h.distance;
+                groundY = h.point.y;
+            }
+            if (best == float.MaxValue) return;
+            var p = transform.position;
+            p.y = Mathf.MoveTowards(p.y, groundY, 8f * Time.deltaTime);
+            transform.position = p;
         }
 
         float DistanceToPlayer() => Vector3.Distance(Flat(transform.position), Flat(player.position));
@@ -237,6 +262,13 @@ namespace FalseParadise
             health.Invulnerable = true;
             attackTimer = 0f;
             StopMoving();
+        }
+
+        /// <summary>Сдаться без боя (огр-вождь опускает оружие): сразу выбор «Пощадить / Добить».</summary>
+        public void Surrender()
+        {
+            if (State == EnemyState.Dead || State == EnemyState.Spared || State == EnemyState.Kneel) return;
+            EnterKneel();
         }
 
         // IInteractable: пощада на E, только пока враг на коленях.

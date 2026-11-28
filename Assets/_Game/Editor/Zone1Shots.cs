@@ -1,0 +1,131 @@
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+
+namespace FalseParadise.EditorTools
+{
+    /// <summary>
+    /// Пакетные скриншоты зоны 1: собирает сцену (Zone1Builder.Build) и рендерит 6 ракурсов
+    /// на высоте глаз 1.7 м в PNG 1920×1080 → &lt;проект&gt;/Screenshots/.
+    /// Запуск: Unity.exe -batchmode -projectPath C:\Gjj -executeMethod FalseParadise.EditorTools.Zone1Shots.Run -logFile ... -quit
+    /// Также доступно из меню False Paradise → Zone 1 Screenshots.
+    /// Capture() общий для всех зон (см. GateShots).
+    /// </summary>
+    public static class Zone1Shots
+    {
+        const int Width = 1920, Height = 1080;
+        const float Eye = 1.7f;
+
+        internal struct Shot
+        {
+            public string name; public Vector2 from, to; public float lookY; public bool truth;
+            public Shot(string n, float fx, float fz, float tx, float tz, float lookY = 0f, bool truth = false)
+            { name = n; from = new Vector2(fx, fz); to = new Vector2(tx, tz); this.lookY = lookY; this.truth = truth; }
+        }
+
+        static readonly Shot[] Shots =
+        {
+            new Shot("01_start", 0f, -4f, -5f, 22f),
+            new Shot("02_first_fight", -3f, 30f, 10f, 56f),
+            new Shot("03_camp", -12f, 98f, -27f, 94f, -0.5f),
+            new Shot("04_bridge", -5.5f, 113.5f, 12f, 135f),
+            new Shot("05_cage", 18f, 143f, 40f, 156f),
+            new Shot("06_exit", 42f, 172f, 58f, 200f),
+            new Shot("07_hall", -6f, 106f, -27f, 93f, 0.8f),
+            new Shot("08_hall_wall", -20f, 96f, -32f, 112f, 1.2f),
+        };
+
+        [MenuItem("False Paradise/Zone 1 Screenshots")]
+        public static void Run() => RunFor(Zone1Builder.Build, Shots, Zone1Builder.Height, "");
+
+        /// <summary>Собрать сцену и снять кадры; prefix добавляется к именам файлов.</summary>
+        internal static void RunFor(System.Action build, Shot[] shots, System.Func<float, float, float> height, string prefix)
+        {
+            bool async = EditorSettings.asyncShaderCompilation;
+            try
+            {
+                int pc = System.Array.IndexOf(QualitySettings.names, "PC");
+                if (pc >= 0) QualitySettings.SetQualityLevel(pc, true);
+                EditorSettings.asyncShaderCompilation = false; // иначе вместо шейдеров голубые заглушки
+                build();
+                Capture(shots, height, prefix);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+            }
+            finally
+            {
+                EditorSettings.asyncShaderCompilation = async;
+            }
+        }
+
+        /// <summary>Показать мир «через Око» без Play mode: облики IllusionVisual и настроение TruthMood.</summary>
+        static void SetTruth(bool truth)
+        {
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            foreach (var iv in Object.FindObjectsByType<IllusionVisual>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var lie = typeof(IllusionVisual).GetField("illusionModel", flags)?.GetValue(iv) as GameObject;
+                var tru = typeof(IllusionVisual).GetField("truthModel", flags)?.GetValue(iv) as GameObject;
+                if (lie != null) lie.SetActive(!truth);
+                if (tru != null) tru.SetActive(truth);
+            }
+            var mood = Object.FindFirstObjectByType<TruthMood>();
+            if (mood != null)
+            {
+                typeof(TruthMood).GetField("t", flags)?.SetValue(mood, truth ? 1f : 0f);
+                typeof(TruthMood).GetMethod("Apply", flags)?.Invoke(mood, null);
+            }
+        }
+
+        static void Capture(Shot[] shots, System.Func<float, float, float> height, string prefix)
+        {
+            string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Screenshots"));
+            Directory.CreateDirectory(dir);
+
+            var cam = Camera.main;
+            if (cam == null) throw new System.Exception("Main Camera не найдена в собранной сцене");
+
+            // Частицы в редакторе сами не симулируются: прокручиваем, чтобы были дым и искры
+            foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
+                ps.Simulate(4f, false, true, false);
+
+            var rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
+            var budget = Object.FindFirstObjectByType<ShadowBudget>();
+            var prevTarget = cam.targetTexture;
+            cam.targetTexture = rt;
+
+            foreach (var s in shots)
+            {
+                var pos = new Vector3(s.from.x, height(s.from.x, s.from.y) + Eye, s.from.y);
+                var target = new Vector3(s.to.x, height(s.to.x, s.to.y) + Eye + s.lookY, s.to.y);
+                cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(target - pos));
+                if (budget != null) budget.ApplyFor(pos); // тени как в игре
+                SetTruth(s.truth);
+
+                // Два прохода: первый прогревает шейдеры и временные буферы
+                cam.Render();
+                cam.Render();
+
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+
+                string file = Path.Combine(dir, prefix + s.name + ".png");
+                File.WriteAllBytes(file, tex.EncodeToPNG());
+                Debug.Log($"[Shots] {file}  pos={pos}");
+            }
+
+            SetTruth(false);
+            cam.targetTexture = prevTarget;
+            Object.DestroyImmediate(rt);
+            Object.DestroyImmediate(tex);
+            Debug.Log($"[Shots] Готово: {shots.Length} кадров в {dir}");
+        }
+    }
+}

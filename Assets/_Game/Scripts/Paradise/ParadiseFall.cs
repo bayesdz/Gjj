@@ -29,8 +29,6 @@ namespace FalseParadise
         [SerializeField] float hellSunIntensity = 0.7f;
 
         [Header("Небо и туман")]
-        [SerializeField] Material paradiseSkybox;
-        [SerializeField] Material hellSkybox;
         [SerializeField] Color paradiseSky = new Color(0.95f, 0.82f, 0.55f);
         [SerializeField] Color paradiseAmbient = new Color(0.75f, 0.72f, 0.6f);
         [SerializeField] float paradiseFogDensity = 0.008f;
@@ -184,13 +182,6 @@ namespace FalseParadise
             RenderSettings.ambientLight = Color.Lerp(paradiseAmbient, hellAmbient, hell);
             RenderSettings.fogColor = Color.Lerp(paradiseSky, hellSky, hell);
             RenderSettings.fogDensity = Mathf.Lerp(paradiseFogDensity, hellFogDensity, hell);
-            var sky = hell >= 0.5f ? hellSkybox : paradiseSkybox;
-            if (sky != null)
-            {
-                RenderSettings.skybox = sky;
-                var camSky = Camera.main;
-                if (camSky) camSky.clearFlags = CameraClearFlags.Skybox;
-            }
             var cam = Camera.main;
             if (cam) cam.backgroundColor = RenderSettings.fogColor;
             if (sun)

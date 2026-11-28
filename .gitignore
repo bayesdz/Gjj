@@ -51,3 +51,6 @@ apikey*.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Batch screenshots (Zone1Shots)
+/[Ss]creenshots/
